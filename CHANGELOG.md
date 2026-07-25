@@ -85,9 +85,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the right of them: measured on a 932px content column, the cards cover 34.7%
   of the banner's area where they used to cover 88.3%. The left-calendar /
   right-progress arrangement, the mount point and the column's width are unchanged.
-- The frosted cards are far more transparent, so the wallpaper reads through them.
-  The card scrim went from 58% of the theme background to 20%, over a heavier
-  `blur(20px)`. Legibility is carried by a glyph halo instead of by an opaque
+- The cards are barely there: the scrim went from 58% of the theme background to
+  7%, and the frost from `blur(20px)` to `blur(2px)`, so the wallpaper reads through
+  them nearly untouched — a high-frequency wallpaper keeps its detail inside a card.
+  What defines a card is its edge rather than its fill: the ink hairline is now
+  paired with a 1px inset line in the theme's background colour and a 6px outer glow
+  in the same colour, which replaces the old black drop shadow and keeps the seam
+  visible on a wallpaper of any brightness.
+  Legibility is carried by a glyph halo instead of by an opaque
   panel: a stacked `text-shadow` in the theme's background colour, which is a scrim
   the size of each glyph and leaves the space between glyphs transparent. Because
   the theme always pairs light ink with a dark background and vice versa, the halo
