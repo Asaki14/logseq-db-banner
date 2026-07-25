@@ -16,6 +16,9 @@ const context: WidgetContext = {
   birthDate: new Date(1990, 0, 1),
   lifespanYears: 85,
   quoteTag: 'quotes',
+  // The real pick is anchored to the user's arrival on a journal view; the widget
+  // only has to render whatever it is handed. See `rotation.test.ts`.
+  quoteForVisit: (quotes) => quotes[0] ?? null,
 }
 
 const allVisible = () => true
@@ -280,15 +283,16 @@ describe('quote widget', () => {
     expect(['first quote', 'second quote']).toContain(texts(node as WidgetNode)[0])
   })
 
-  it('shows the same quote all day and a different one on another day', () => {
-    const pool = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-    const at = (now: Date) => texts(quoteNode(pool, { now }) as WidgetNode)[0]
-    expect(at(new Date(2025, 6, 25, 1))).toBe(at(new Date(2025, 6, 25, 22)))
+  it('renders the collected candidates through the visit\'s pick', () => {
+    const quoteForVisit = vi.fn(() => 'whatever the visit chose')
+    const node = quoteNode(['  bravo ', 'bravo', '- alpha'], { quoteForVisit })
+    // Normalised, de-duplicated and ordered before the pick sees them.
+    expect(quoteForVisit).toHaveBeenCalledWith(['alpha', 'bravo'])
+    expect(texts(node as WidgetNode)).toEqual(['whatever the visit chose'])
+  })
 
-    const week = Array.from({ length: 7 }, (_x, offset) =>
-      at(new Date(2025, 6, 20 + offset)),
-    )
-    expect(new Set(week).size).toBeGreaterThan(1)
+  it('shows nothing when the visit picked nothing', () => {
+    expect(quoteNode(['alpha'], { quoteForVisit: () => null })).toBeUndefined()
   })
 
   it('stays out of the banner when the source is empty, missing or broken', () => {

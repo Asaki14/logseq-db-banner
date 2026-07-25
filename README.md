@@ -4,11 +4,11 @@
 
 A page banner for **Logseq DB graphs**: a wallpaper from your own machine behind two
 frosted-glass cards — a month calendar on the left, the day/week/year/life progress bars
-and a quote of the day on the right.
+and a quote on the right.
 
 ## 中文
 
-一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，之上并排放两张半透明毛玻璃卡片——左边是当月日历，右边自上而下是当天／本周／当年／人生四条进度条，底部是每日一言。
+一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，之上并排放两张半透明毛玻璃卡片——左边是当月日历，右边自上而下是当天／本周／当年／人生四条进度条，底部是一言。
 
 ### 功能
 
@@ -18,7 +18,7 @@ and a quote of the day on the right.
 - **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示标签、进度条与**三位小数**的百分比（如 `41.286%`）。不再显示"剩余多少小时／天／年"。百分比使用等宽数字（tabular figures）并占固定宽度，末位每约 0.86 秒变化一次也不会让整行左右抖动。每秒自动刷新，无需手动刷新页面。
 - **人生进度**：由出生日期与预期寿命（默认 85 年）计算。出生日期在未来时显示 0%，寿命已超出时显示 100%。
 - **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期都会跳转到该天的日志页面——无论那天已有内容、页面存在但是空的、还是页面根本不存在。首列跟随 `Week starts on` 设置。写入一个块之后，圆点约 1 秒内出现（监听 `logseq.DB.onChanged`）。
-- **每日一言**：显示在进度卡底部（与进度条同属"数字读数"，放在同一张卡里比单独占一块更连贯）。语录来源同时支持标签的两种佩戴方式：**块本身**携带该标签（任意层级），以及携带该标签的**页面**的顶层块。因此 Logseq 内置的 `Quote` 节点类型可以直接当作来源——把 `Quote source tag` 填成 `Quote` 即可，不需要迁移数据。（内置 `Quote` 是类 `:logseq.class/Quote-block`，从旧版文件图谱导入时，原先写成 `#quote` 的块会被打上这个标签；它只挂在块上，不挂在页面上，所以只按"页面标签"查是找不到的。）按日期哈希每天固定挑选一条：同一天内重新挂载不会变，跨天会变。标签不存在、来源为空或查询失败时，组件安静地不显示，横幅其余部分照常工作。过长的语录会被截断并限制在 3 行内，不会撑高或撑宽横幅。
+- **一言**：显示在进度卡底部（与进度条同属"数字读数"，放在同一张卡里比单独占一块更连贯）。语录来源同时支持标签的两种佩戴方式：**块本身**携带该标签（任意层级），以及携带该标签的**页面**的顶层块。因此 Logseq 内置的 `Quote` 节点类型可以直接当作来源——把 `Quote source tag` 填成 `Quote` 即可，不需要迁移数据。（内置 `Quote` 是类 `:logseq.class/Quote-block`，从旧版文件图谱导入时，原先写成 `#quote` 的块会被打上这个标签；它只挂在块上，不挂在页面上，所以只按"页面标签"查是找不到的。）**每次进入日记视图都会换一条**：进页面（首次挂载、以及从任意页面切回日记页）时随机挑选，之后停在那一条不动——横幅每秒重绘、语录缓存到期重新查询都不会让它跳字；候选多于一条时不会紧接着重复上一条。日记页之间互相跳转算两次进入，各自换一条。候选只有一条时就一直显示那一条。标签不存在、来源为空或查询失败时，组件安静地不显示，横幅其余部分照常工作。过长的语录会被截断并限制在 3 行内，不会撑高或撑宽横幅。
 - 切换页面后横幅自动重新挂载。
 
 日历标记与语录都需要查询图谱，但横幅每秒重绘一次：这两项数据按键（当前月份 / 标签名）缓存，并在图谱写入（`logseq.DB.onChanged`，300ms 合并、最长 1.5s 强制刷新）、路由切换、设置变更或缓存超时（日历 60 秒、语录 5 分钟）时才重新查询，不会每秒打一次数据库。缓存失效时旧值继续显示到新值到达，所以刷新过程中组件不会先消失再出现。
@@ -42,7 +42,7 @@ and a quote of the day on the right.
 | Birth date / 出生日期 | 空 | `YYYY-MM-DD`。未填写时人生进度显示 `--%`。 |
 | Lifespan in years / 预期寿命（年） | `85` | 人生进度条的分母。 |
 | Week starts on / 一周起始日 | `monday` | `monday`、`sunday` 或 `saturday`，同时决定周进度的分界与日历的首列。 |
-| Quote source tag / 语录来源标签 | `quotes` | 语录来源标签名。可以写 `quotes`、`#quotes` 或 `[[Quotes]]`（大小写不敏感）；填 `Quote` 则使用 Logseq 内置的 `Quote` 节点类型。留空表示关闭语录组件。 |
+| Quote source tag / 语录来源标签 | `quotes` | 语录来源标签名。可以写 `quotes`、`#quotes` 或 `[[Quotes]]`（大小写不敏感）；填 `Quote` 则使用 Logseq 内置的 `Quote` 节点类型。每次进入日记视图换一条。留空表示关闭语录组件。 |
 | Show day / week / year / life / calendar / quote widget | 全部开启 | 分别控制六个组件是否显示。 |
 
 组件开关的设置键在 phase 2 从 `show<Id>Progress` 改名为 `show<Id>Widget`（"进度"已经不适用于日历和语录）。插件首次启动时会把旧键的值搬到新键，并写入 `settingsVersion: 2` 作为一次性标记，之后旧键不再参与判断——所以既有配置不会被重置，之后改动新键也不会被旧值覆盖回去。旧键会保留在设置文件里，以便回退到旧版本。
@@ -136,7 +136,7 @@ day on the right.
   follows the `Week starts on` setting.
   After you write a block, its dot appears within about a second — the plugin listens to
   `logseq.DB.onChanged` rather than waiting out a cache TTL.
-- **A quote of the day** at the foot of the progress card — it is a reading like the
+- **A quote** at the foot of the progress card — it is a reading like the
   bars are, so it belongs on the same card rather than as a third loose block. The source
   is a configurable tag (`quotes` by default), read in both of the shapes a tag is worn:
   every *block* carrying it, at any depth, plus the top-level blocks of every *page*
@@ -144,8 +144,12 @@ day on the right.
   `Quote source tag` to `Quote` and no data has to be migrated. (Built-in `Quote` is the
   class `:logseq.class/Quote-block`, the tag a file-graph import puts on blocks that were
   written as `#quote`. It sits on the blocks, never on a page, so a page-tag-only query
-  finds nothing.) The pick is a date-seeded hash, so it is the
-  same all day — a re-mount cannot reshuffle it — and different on another day. A missing
+  finds nothing.) **A new quote on every arrival**: one is picked when you land on a
+  journal view — the first mount, and every return from another page — and then held for
+  the whole visit, so neither the per-second re-render nor the quote cache going stale can
+  make it jump. With more than one candidate it never repeats the one just shown, and
+  navigating from one journal day to another counts as two arrivals, so it changes there
+  too. A single candidate is simply shown again. A missing
   tag, a tag with no blocks under it or a failed query degrades quietly: no widget, no
   error, and the rest of the banner keeps working. A long quote is truncated and clamped
   to three lines, so it cannot resize the banner.
@@ -182,7 +186,7 @@ Configure these under `Settings → Plugin Settings → DB Banner`:
 | Birth date | empty | `YYYY-MM-DD`. Without it the life widget shows `--%`. |
 | Lifespan in years | `85` | Denominator of the life-progress bar. |
 | Week starts on | `monday` | `monday`, `sunday` or `saturday`; sets the week-progress boundary and the calendar's first column. |
-| Quote source tag | `quotes` | Name of the tag the quotes belong to, on the blocks or on their page. `quotes`, `#quotes` and `[[Quotes]]` all work, case-insensitively; `Quote` selects Logseq's built-in `Quote` node type. Empty turns the quote widget off. |
+| Quote source tag | `quotes` | Name of the tag the quotes belong to, on the blocks or on their page. `quotes`, `#quotes` and `[[Quotes]]` all work, case-insensitively; `Quote` selects Logseq's built-in `Quote` node type. One is picked on every arrival at a journal view. Empty turns the quote widget off. |
 | Show day / week / year / life / calendar / quote widget | all on | Per-widget visibility. |
 
 Phase 2 renamed the visibility keys from `show<Id>Progress` to `show<Id>Widget`, since

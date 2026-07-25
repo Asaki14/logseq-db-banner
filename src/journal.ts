@@ -46,6 +46,19 @@ export function shouldMountBanner(view: HostView): boolean {
   return false
 }
 
+/**
+ * Identity of the journal view on screen, or `null` when this is not one — what
+ * "the user arrived somewhere new" means for anything anchored to a visit rather
+ * than to a render (the quote, see `rotation.ts`).
+ *
+ * The route name is part of the key, so opening today's own page from the journals
+ * feed counts as an arrival even though it is the same day.
+ */
+export function journalViewKey(view: HostView): string | null {
+  if (!shouldMountBanner(view)) return null
+  return `${view.routeName ?? ''}:${view.page?.journalDay ?? 'feed'}`
+}
+
 function readRouteName(rawRouteName: unknown): string | null {
   return typeof rawRouteName === 'string' && rawRouteName !== ''
     ? rawRouteName
