@@ -1,0 +1,46 @@
+{
+  "name": "logseq-db-banner",
+  "version": "0.1.0",
+  "description": "Customizable page banner with a local wallpaper and time-progress widgets for Logseq DB graphs.",
+  "author": "Asaki14",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Asaki14/logseq-db-banner.git"
+  },
+  "homepage": "https://github.com/Asaki14/logseq-db-banner#readme",
+  "bugs": {
+    "url": "https://github.com/Asaki14/logseq-db-banner/issues"
+  },
+  "keywords": [
+    "logseq",
+    "logseq-plugin",
+    "banner",
+    "wallpaper",
+    "db-graph"
+  ],
+  "main": "dist/index.html",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "dev": "vite build --watch",
+    "test": "vitest run",
+    "check": "npm run test && npm run build"
+  },
+  "logseq": {
+    "id": "db-banner",
+    "title": "DB Banner",
+    "icon": "icon.svg",
+    "effect": false,
+    "unsupportedGraphType": "file"
+  },
+  "devDependencies": {
+    "@logseq/libs": "0.2.11",
+    "typescript": "7.0.2",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
+  },
+  "overrides": {
+    "dompurify": "3.4.12",
+    "lodash-es": "4.18.1"
+  }
+}
