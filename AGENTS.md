@@ -49,7 +49,7 @@ The markdown-era prior art (`yoyurec/logseq-banners-plugin`) is a useful referen
 
 ## Verifying against a live Logseq
 
-Never attach to the user's running Logseq. Launch a throwaway one instead, fully isolated:
+The maintainer runs this plugin from `~/logseq/plugins/logseq-db-banner`, a separate clone he builds in place — that is his live testing surface, so never edit or build in it, never attach to or restart the Logseq he has running, and never touch his graph or `~/.logseq`. Launch a throwaway instance instead, fully isolated:
 
 ```bash
 env HOME=<scratch>/home CFFIXED_USER_HOME=<scratch>/home \
@@ -92,7 +92,7 @@ Same `HOME`, so the throwaway GUI above opens that graph directly. Notes: `upser
 
 ## Conventions
 
-Commit subjects follow Conventional Commits (`feat:`, `chore:`). Feature commits carry their own `CHANGELOG.md` entries under `## [Unreleased]`. Documentation is two single-language files, `README.md` (English, primary) and `README.zh-CN.md` (Chinese), cross-linked on their first line and each complete on its own — neither is a stub — so a behaviour change usually touches both.
+Commit subjects follow Conventional Commits (`feat:`, `chore:`). No agent or model name goes in a commit as a co-author — no `Co-Authored-By: Claude …` trailer; one reached the default branch through a squash merge once. Feature commits carry their own `CHANGELOG.md` entries under `## [Unreleased]`. Documentation is two single-language files, `README.md` (English, primary) and `README.zh-CN.md` (Chinese), cross-linked on their first line and each complete on its own — neither is a stub — so a behaviour change usually touches both.
 
 Releasing is a pushed `v*` tag: `.github/workflows/publish.yml` runs `npm run check`, zips `dist/` with `package.json`, both READMEs, `LICENSE`, `CHANGELOG.md` and `icon.svg`, and attaches that zip to a generated GitHub release — the marketplace installs from the zip, not from the source archive. So a release commit moves the `## [Unreleased]` entries into a dated version section and bumps `package.json`.
 
