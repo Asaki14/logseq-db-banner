@@ -54,8 +54,22 @@ function collect(
 }
 
 describe('widget registry', () => {
-  it('lists the four progress widgets plus the calendar and the quote', () => {
-    expect(widgetIds).toEqual(['day', 'week', 'year', 'life', 'calendar', 'quote'])
+  it('lists the calendar, the four progress widgets and the quote', () => {
+    expect(widgetIds).toEqual(['calendar', 'day', 'week', 'year', 'life', 'quote'])
+  })
+
+  it('puts the calendar on its own card and everything else on the panel', () => {
+    const groups = buildWidgetViews(context, allVisible).map((view) => [
+      view.id,
+      view.group,
+    ])
+    expect(groups).toEqual([
+      ['calendar', 'calendar'],
+      ['day', 'panel'],
+      ['week', 'panel'],
+      ['year', 'panel'],
+      ['life', 'panel'],
+    ])
   })
 
   it('gives every widget a unique id', () => {
@@ -73,7 +87,7 @@ describe('widget registry', () => {
 describe('progress widgets', () => {
   it('renders a percentage, a bar width and a detail line', () => {
     const day = nodeById(buildWidgetViews(context, allVisible), 'day')
-    expect(texts(day)).toEqual(['Day', '50.0%', '12h left'])
+    expect(texts(day)).toEqual(['Day', '12h left', '50.0%'])
 
     const bar = find(day, (node) => node.class === 'lsdb-widget__bar')
     expect(bar?.style).toEqual({ width: '50.000%' })
@@ -92,8 +106,8 @@ describe('progress widgets', () => {
     const detail = (weekStart: 0 | 1) =>
       texts(nodeById(buildWidgetViews({ ...context, weekStart }, allVisible), 'week'))
     // Friday noon is 4.5 of 7 days into a Monday week, 5.5 into a Sunday one.
-    expect(detail(1)).toEqual(['Week', '64.3%', '3d left'])
-    expect(detail(0)).toEqual(['Week', '78.6%', '2d left'])
+    expect(detail(1)).toEqual(['Week', '3d left', '64.3%'])
+    expect(detail(0)).toEqual(['Week', '2d left', '78.6%'])
   })
 
   it('marks the life widget unavailable without a birth date', () => {
@@ -101,7 +115,7 @@ describe('progress widgets', () => {
       buildWidgetViews({ ...context, birthDate: null }, allVisible),
       'life',
     )
-    expect(texts(life)).toEqual(['Life', '--%', 'set a birth date'])
+    expect(texts(life)).toEqual(['Life', 'set a birth date', '--%'])
     expect(find(life, (node) => node.class === 'lsdb-widget__bar')?.style).toEqual({
       width: '0%',
     })
@@ -109,7 +123,7 @@ describe('progress widgets', () => {
 
   it('reports the remaining years of a normal lifespan', () => {
     const life = nodeById(buildWidgetViews(context, allVisible), 'life')
-    expect(texts(life)).toEqual(['Life', '41.8%', '49.4y left'])
+    expect(texts(life)).toEqual(['Life', '49.4y left', '41.8%'])
   })
 
   it('caps an exceeded lifespan at 100% and says so', () => {
@@ -117,7 +131,7 @@ describe('progress widgets', () => {
       buildWidgetViews({ ...context, birthDate: new Date(1900, 0, 1) }, allVisible),
       'life',
     )
-    expect(texts(life)).toEqual(['Life', '100.0%', '85y reached'])
+    expect(texts(life)).toEqual(['Life', '85y reached', '100.0%'])
   })
 
   it('is 100% on the last day of a leap-year lifespan boundary', () => {

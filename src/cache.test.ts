@@ -122,10 +122,44 @@ describe('createAsyncCache', () => {
 
     await cache.ensure('a', 10_000, load)
     cache.invalidate()
-    expect(cache.peek('a')).toBeUndefined()
 
     await cache.ensure('a', 10_000, load)
     expect(load).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps serving the invalidated value until the reload lands', async () => {
+    const deferred = deferredLoader()
+    const cache = createAsyncCache()
+
+    await cache.ensure('a', 10_000, () => Promise.resolve('old'))
+    cache.invalidate()
+    // Nothing may disappear from the render between an invalidate and its reload:
+    // a widget dropping out rebuilds the widget DOM and swallows a click in flight.
+    expect(cache.peek('a')).toBe('old')
+
+    const reload = cache.ensure('a', 10_000, deferred.load)
+    expect(cache.peek('a')).toBe('old')
+
+    await deferred.settle(0, 'new')
+    await reload
+    expect(cache.peek('a')).toBe('new')
+  })
+
+  it('starts a fresh load right after invalidate, without waiting out the discarded one', async () => {
+    const deferred = deferredLoader()
+    const cache = createAsyncCache()
+
+    const discarded = cache.ensure('a', 10_000, deferred.load)
+    cache.invalidate()
+    const reload = cache.ensure('a', 10_000, deferred.load)
+    expect(deferred.load).toHaveBeenCalledTimes(2)
+
+    await deferred.settle(0, 'read before the invalidate')
+    await discarded
+    await deferred.settle(1, 'read after the invalidate')
+    await reload
+
+    expect(cache.peek('a')).toBe('read after the invalidate')
   })
 
   it('discards a load that was already running when invalidate was called', async () => {

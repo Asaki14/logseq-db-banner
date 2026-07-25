@@ -6,6 +6,11 @@
  * Widgets arrive as `WidgetNode` trees and are patched into the DOM in place, so
  * the per-second tick writes only the attributes that actually changed and never
  * re-creates an element the host app is laying out.
+ *
+ * Every level of that patch is keyed — group cards by group id, widgets by widget
+ * id — because a re-created element loses a click in flight: Chrome dispatches no
+ * `click` at all when the node the mouse went down on is detached before mouseup,
+ * so a widget appearing or disappearing must never rebuild its neighbours.
  */
 
 import type { WallpaperFit } from './settings'
@@ -37,6 +42,8 @@ export interface BannerAppearance {
 
 /** Widget roots by id, so a tick can patch instead of rebuilding. */
 const widgetElements = new Map<string, HTMLElement>()
+/** Group cards by group id, keyed for the same reason. */
+const groupElements = new Map<string, HTMLElement>()
 
 let actionHandler: ((action: WidgetAction) => void) | null = null
 
@@ -87,13 +94,18 @@ export function ensureBanner(doc = getHostDocument()): HTMLElement | null {
 
   banner.append(image, widgets)
   anchor.prepend(banner)
-  widgetElements.clear()
+  forgetRenderedElements()
   return banner
 }
 
 export function removeBanner(doc = getHostDocument()): void {
   doc.getElementById(BANNER_ID)?.remove()
+  forgetRenderedElements()
+}
+
+function forgetRenderedElements(): void {
   widgetElements.clear()
+  groupElements.clear()
 }
 
 export function applyAppearance(
@@ -149,29 +161,76 @@ export function renderWidgets(
   const container = banner.querySelector<HTMLElement>('.lsdb-banner__widgets')
   if (!container) return
 
-  const wanted = views.map(({ id }) => id).join(',')
-  if (container.dataset.widgetIds !== wanted) {
-    container.replaceChildren()
-    widgetElements.clear()
-    for (const view of views) {
-      const element = createElement(view.node, doc)
-      widgetElements.set(view.id, element)
-      container.append(element)
+  const groups = groupViews(views)
+  reconcile(container, groups.map(({ group }) => group), groupElements, (group) => {
+    const card = doc.createElement('div')
+    card.className = `lsdb-card lsdb-card--${group}`
+    return card
+  })
+
+  for (const { group, views: members } of groups) {
+    const card = groupElements.get(group)
+    if (!card) continue
+    reconcile(card, members.map(({ id }) => id), widgetElements, (_id, index) =>
+      createElement(members[index].node, doc),
+    )
+    for (const view of members) {
+      const element = widgetElements.get(view.id)
+      if (!element || patchElement(element, view.node, doc)) continue
+
+      // A shape the patch could not reach (a different tag): swap the widget.
+      const replacement = createElement(view.node, doc)
+      element.replaceWith(replacement)
+      widgetElements.set(view.id, replacement)
     }
-    container.dataset.widgetIds = wanted
-    return
   }
 
+  container.dataset.widgetIds = views.map(({ id }) => id).join(',')
+}
+
+/** Views by group, groups in the order the registry first mentions them. */
+function groupViews(
+  views: WidgetView[],
+): { group: string; views: WidgetView[] }[] {
+  const groups: { group: string; views: WidgetView[] }[] = []
   for (const view of views) {
-    const element = widgetElements.get(view.id)
-    if (!element) continue
-    if (patchElement(element, view.node, doc)) continue
-
-    // A shape the patch could not reach (a different tag): swap the widget.
-    const replacement = createElement(view.node, doc)
-    element.replaceWith(replacement)
-    widgetElements.set(view.id, replacement)
+    const existing = groups.find(({ group }) => group === view.group)
+    if (existing) existing.views.push(view)
+    else groups.push({ group: view.group, views: [view] })
   }
+  return groups
+}
+
+/**
+ * Bring `parent`'s children in line with `keys`, reusing the element already
+ * registered for a key. Only elements whose key is gone are removed and only
+ * elements out of position are moved, so a key that stays keeps its element —
+ * and with it any click the user has already started on it.
+ */
+function reconcile(
+  parent: HTMLElement,
+  keys: string[],
+  registry: Map<string, HTMLElement>,
+  create: (key: string, index: number) => HTMLElement,
+): void {
+  const wanted = new Set(keys)
+  for (const child of [...parent.children]) {
+    const key = (child as HTMLElement).dataset.reconcileKey
+    if (key !== undefined && wanted.has(key)) continue
+    child.remove()
+    if (key !== undefined) registry.delete(key)
+  }
+
+  keys.forEach((key, index) => {
+    let element = registry.get(key)
+    if (!element) {
+      element = create(key, index)
+      element.dataset.reconcileKey = key
+      registry.set(key, element)
+    }
+    const atIndex = parent.children[index]
+    if (atIndex !== element) parent.insertBefore(element, atIndex ?? null)
+  })
 }
 
 /**
@@ -249,11 +308,15 @@ function patchElement(
   return true
 }
 
+/** Dataset keys the renderer owns; they are not part of any `node.data`. */
+const RESERVED_DATA_KEYS = new Set(['lsdbAction', 'reconcileKey'])
+
 function patchDataset(element: HTMLElement, node: WidgetNode): void {
   const data = node.data ?? {}
   for (const key of Object.keys(element.dataset)) {
-    // `data-lsdb-action` is handled separately and is not part of `node.data`.
-    if (key !== 'lsdbAction' && !(key in data)) delete element.dataset[key]
+    if (!RESERVED_DATA_KEYS.has(key) && !(key in data)) {
+      delete element.dataset[key]
+    }
   }
   for (const [key, value] of Object.entries(data)) {
     if (element.dataset[key] !== value) element.dataset[key] = value

@@ -111,6 +111,7 @@ describe('injected styles', () => {
 describe('widget rendering', () => {
   const progressView = (percent: string, width: string) => ({
     id: 'day',
+    group: 'panel' as const,
     node: {
       class: 'lsdb-widget lsdb-widget--progress',
       children: [
@@ -130,6 +131,7 @@ describe('widget rendering', () => {
     const container = render([
       {
         id: 'calendar',
+        group: 'calendar',
         node: {
           class: 'lsdb-widget',
           children: [
@@ -156,9 +158,25 @@ describe('widget rendering', () => {
     )
   })
 
+  it('groups widgets into one card per group, in first-seen order', () => {
+    const container = render([
+      { id: 'calendar', group: 'calendar', node: { class: 'lsdb-widget' } },
+      progressView('10.0%', '10.000%'),
+      { id: 'quote', group: 'panel', node: { class: 'lsdb-widget--quote' } },
+    ])
+
+    const cards = [...container.children] as HTMLElement[]
+    expect(cards.map((card) => card.className)).toEqual([
+      'lsdb-card lsdb-card--calendar',
+      'lsdb-card lsdb-card--panel',
+    ])
+    expect(cards[0].children).toHaveLength(1)
+    expect(cards[1].children).toHaveLength(2)
+  })
+
   it('updates a widget in place instead of re-creating it', () => {
     const container = render([progressView('10.0%', '10.000%')])
-    const before = container.firstElementChild
+    const before = container.querySelector('.lsdb-widget--progress')
     const bar = container.querySelector('.lsdb-widget__bar') as HTMLElement
 
     renderWidgets(
@@ -167,7 +185,7 @@ describe('widget rendering', () => {
       document,
     )
 
-    expect(container.firstElementChild).toBe(before)
+    expect(container.querySelector('.lsdb-widget--progress')).toBe(before)
     expect(container.querySelector('.lsdb-widget__bar')).toBe(bar)
     // jsdom normalises the length, hence `20%` rather than `20.000%`.
     expect(bar.style.width).toBe('20%')
@@ -176,7 +194,7 @@ describe('widget rendering', () => {
     ).toBe('20.0%')
   })
 
-  it('rebuilds when the set of widgets changes', () => {
+  it('removes a widget that is no longer rendered', () => {
     const container = render([progressView('10.0%', '10.000%')])
     expect(container.dataset.widgetIds).toBe('day')
 
@@ -185,13 +203,14 @@ describe('widget rendering', () => {
       [],
       document,
     )
-    expect(container.children).toHaveLength(0)
+    expect(container.querySelectorAll('.lsdb-widget')).toHaveLength(0)
     expect(container.dataset.widgetIds).toBe('')
   })
 
   it('drops a data attribute the new node no longer has', () => {
     const view = (data: Record<string, string>) => ({
       id: 'calendar',
+      group: 'calendar' as const,
       node: { class: 'lsdb-widget', data },
     })
     const container = render([view({ today: 'true', content: 'true' })])
@@ -201,7 +220,7 @@ describe('widget rendering', () => {
       document,
     )
 
-    const widget = container.firstElementChild as HTMLElement
+    const widget = container.querySelector('.lsdb-widget') as HTMLElement
     expect(widget.dataset.today).toBe('true')
     expect(widget.dataset.content).toBeUndefined()
   })
@@ -213,6 +232,7 @@ describe('widget rendering', () => {
     const container = render([
       {
         id: 'calendar',
+        group: 'calendar',
         node: {
           class: 'lsdb-widget',
           children: [
@@ -236,6 +256,95 @@ describe('widget rendering', () => {
   })
 })
 
+/**
+ * Regression cover for the intermittent "clicking a date does nothing".
+ *
+ * Reproduced live: pressing the mouse on a calendar day while the widget DOM was
+ * rebuilt — which the old renderer did whenever the *set* of rendered widgets
+ * changed, and the quote widget dropped out of that set on every cache
+ * invalidation — detached the pressed button before mouseup. Chrome then fires no
+ * `click` event at all, so the delegated handler never runs and nothing
+ * navigates. Keeping the element identity of widgets that stay is the fix.
+ */
+describe('a widget appearing or disappearing', () => {
+  const calendarView = {
+    id: 'calendar',
+    group: 'calendar' as const,
+    node: {
+      class: 'lsdb-widget',
+      children: [
+        {
+          tag: 'button' as const,
+          class: 'lsdb-calendar__day',
+          text: '25',
+          action: { kind: 'openJournalDay' as const, day: 20260725 },
+        },
+      ],
+    },
+  }
+  const dayView = {
+    id: 'day',
+    group: 'panel' as const,
+    node: { class: 'lsdb-widget lsdb-widget--progress', text: '52%' },
+  }
+  const quoteView = {
+    id: 'quote',
+    group: 'panel' as const,
+    node: { class: 'lsdb-widget lsdb-widget--quote', text: 'Amor fati.' },
+  }
+
+  function render(views: Parameters<typeof renderWidgets>[1]) {
+    const banner = ensureBanner(document) as HTMLElement
+    renderWidgets(banner, views, document)
+    return banner
+  }
+
+  it('leaves the other widgets, and their nodes, exactly where they were', () => {
+    const banner = render([calendarView, dayView, quoteView])
+    const day = banner.querySelector('.lsdb-calendar__day')
+    const progress = banner.querySelector('.lsdb-widget--progress')
+    const cards = [...(banner.querySelector('.lsdb-banner__widgets')?.children ?? [])]
+
+    // The quote drops out (its data was invalidated) and comes back.
+    renderWidgets(banner, [calendarView, dayView], document)
+    expect(banner.querySelector('.lsdb-calendar__day')).toBe(day)
+    expect(banner.querySelector('.lsdb-widget--progress')).toBe(progress)
+    expect(banner.querySelector('.lsdb-widget--quote')).toBeNull()
+
+    renderWidgets(banner, [calendarView, dayView, quoteView], document)
+    expect(banner.querySelector('.lsdb-calendar__day')).toBe(day)
+    expect(banner.querySelector('.lsdb-widget--progress')).toBe(progress)
+    expect(banner.querySelector('.lsdb-widget--quote')).not.toBeNull()
+    expect([...(banner.querySelector('.lsdb-banner__widgets')?.children ?? [])]).toEqual(
+      cards,
+    )
+  })
+
+  it('still routes a click on a day the re-render kept', () => {
+    const actions: unknown[] = []
+    setWidgetActionHandler((action) => actions.push(action))
+
+    const banner = render([calendarView, dayView, quoteView])
+    renderWidgets(banner, [calendarView, dayView], document)
+    renderWidgets(banner, [calendarView, dayView, quoteView], document)
+    ;(banner.querySelector('.lsdb-calendar__day') as HTMLElement).click()
+
+    expect(actions).toEqual([{ kind: 'openJournalDay', day: 20260725 }])
+  })
+
+  it('keeps the widget order when one comes back in the middle', () => {
+    const banner = render([calendarView, quoteView, dayView])
+    renderWidgets(banner, [calendarView, dayView], document)
+    renderWidgets(banner, [calendarView, quoteView, dayView], document)
+
+    const panel = banner.querySelector('.lsdb-card--panel') as HTMLElement
+    expect([...panel.children].map((child) => child.className)).toEqual([
+      'lsdb-widget lsdb-widget--quote',
+      'lsdb-widget lsdb-widget--progress',
+    ])
+  })
+})
+
 describe('a banner left behind by a previous plugin instance', () => {
   it('gets our click listener, since the old instance took its own away', () => {
     // What survives a reload: the element, without a live listener on it.
@@ -256,6 +365,7 @@ describe('a banner left behind by a previous plugin instance', () => {
       [
         {
           id: 'calendar',
+          group: 'calendar',
           node: {
             tag: 'button',
             class: 'lsdb-calendar__day',
