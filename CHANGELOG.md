@@ -112,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the cards still cover only part of the banner — 40% of its area after, 38%
   before. With the quote hidden, or its source empty, the row falls back to two
   198.9px cards with no empty element left behind.
+- The two cards are pushed to the banner's opposite edges instead of sitting side by
+  side: the calendar against the left inset, the progress-and-quote card against the
+  right, with the wallpaper between them. The inset is the banner's own 14px padding,
+  so neither card touches the border, and neither card grows — all the spare room in
+  the row becomes the gap. Measured live in a 932px content column: the calendar
+  occupies 46–266px either way, and the progress card 700–950px where it used to
+  occupy 278–528px, so the space between them goes from 12px to 434px. The cards stay
+  equal height (223.57px each), and the column's width (932px) and the absence of
+  overflow (`scrollWidth === clientWidth`) are unchanged. A lone card — calendar
+  hidden, or every progress widget off — sits at the left end.
 - The type is plainer and no longer glows. The per-glyph halo — four stacked
   `text-shadow` rings in the theme's background colour — is replaced by one soft
   shadow under the glyph (`0 1px 2px` at 62% of that colour), and the legibility it
