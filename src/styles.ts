@@ -9,18 +9,18 @@
  * width and height held apart at its two edges — the month grid at the left, the progress
  * bars and the quote at the right, wallpaper between them — sharing one type
  * scale, one corner radius, one gap and one accent.
- * Colours come from the host's own theme variables (`--ls-*`, `--lx-accent-11`),
- * blended with `color-mix`, so light and dark themes are followed without a theme
- * selector and without hard-coded palettes; the fallbacks only apply if a theme
- * drops a variable.
+ * The banner deliberately does *not* follow the host's light/dark theme: it is a
+ * surface laid over an image, not part of the page. `--ls-primary-background-color`
+ * is white in the light theme, so a scrim mixed from it lightened a dark
+ * photograph almost not at all while the theme's dark ink sat on top of that dark
+ * image — unreadable. The scrim and the ink are therefore constants, a dark glass
+ * carrying light type, which works over any wallpaper in either theme. Only the
+ * accent still comes from the theme (`--lx-accent-11`).
  *
  * The cards are still meant to be seen *through*, so the scrim stays light and
  * the cards are held together by their edge as much as their fill. Legibility is
  * paid for by the scrim plus one soft drop shadow — not by the omnidirectional
- * per-glyph halo this used to stack, which made the type glow. The shadow is
- * drawn in the theme's background colour, which is what makes a single value work
- * on any wallpaper: the theme always pairs light ink with a dark background and
- * vice versa, so the shadow is always the opposite of the text.
+ * per-glyph halo this used to stack, which made the type glow.
  */
 
 export const bannerStyles = `
@@ -42,16 +42,16 @@ export const bannerStyles = `
   --lsdb-accent: var(--lx-accent-11, #6aa9d8);
   /* Enough of a scrim to carry plain type on its own — the wallpaper still reads
      through it, but the ink no longer needs a halo to survive a busy photograph. */
-  --lsdb-surface: color-mix(
-    in srgb,
-    var(--ls-primary-background-color, #10131a) 32%,
-    transparent
-  );
-  --lsdb-ink: var(--ls-primary-text-color, #eceff4);
+  /* Dark glass, deliberately NOT the theme background: in the light theme that
+     variable is white, and a white scrim over a dark photograph lightens almost
+     nothing while the theme's dark ink sits on top of a dark image. A constant
+     dark scrim with light ink is legible over any wallpaper in either theme. */
+  --lsdb-surface: rgba(12, 15, 22, 0.3);
+  --lsdb-ink: #f0f3f8;
   --lsdb-hairline: color-mix(in srgb, var(--lsdb-ink) 26%, transparent);
   /* The background colour: the fill of anything that has to read as a surface,
      and the colour the text shadow is drawn in. */
-  --lsdb-halo: var(--ls-primary-background-color, #10131a);
+  --lsdb-halo: #0c0f16;
   /* The card edge, drawn as an ink hairline paired with a background-coloured line
      just inside it, so the pair keeps a visible seam on a wallpaper of any
      brightness without thickening into a frame. */
@@ -59,9 +59,9 @@ export const bannerStyles = `
   /* One soft shadow under the glyph, not a ring around it: it separates the type
      from whatever the scrim lets through without the glow an omnidirectional halo
      gives every letter. */
-  --lsdb-text-shadow: 0 1px 2px color-mix(
+  --lsdb-text-shadow: 0 1px 1px color-mix(
     in srgb,
-    var(--lsdb-halo) 62%,
+    var(--lsdb-halo) 24%,
     transparent
   );
 
