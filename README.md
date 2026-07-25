@@ -102,7 +102,7 @@ Configure these under `Settings → Plugin Settings → DB Banner`:
 
 | Setting | Default | Notes |
 | --- | --- | --- |
-| Wallpaper source | empty | An absolute local path (`/Users/me/Pictures/wall.jpg`), an `https://` URL, a `data:` URI, or a graph-relative path (`../assets/wall.jpg`). Empty, `false`, `none` and `off` all mean "no wallpaper". |
+| Wallpaper source | empty | An absolute local path (`/Users/me/Pictures/wall.jpg`, or `D:\Pictures\wall.jpg` on Windows), an `https://` URL, a `data:` URI, or a graph-relative path (`../assets/wall.jpg`). Empty, `false`, `none` and `off` all mean "no wallpaper". |
 | Wallpaper fit | `cover` | `cover`, `contain` or `tile`. |
 | Wallpaper position | `50% 50%` | CSS `background-position`, for example `center top`. |
 | Banner height | `280px` | A CSS length such as `280px` or `32vh`. It is a minimum — a value too small for the cards makes the banner grow rather than clip. |
@@ -130,8 +130,14 @@ Logseq's desktop shell registers `assets://` as a privileged scheme (`standard`,
 `assets://` prefix, runs `decodeURIComponent`, and serves the remainder as an absolute
 filesystem path. So:
 
-- an absolute path becomes `assets:///absolute/path`, percent-encoded per segment so
+- an absolute POSIX path becomes `assets:///absolute/path`, percent-encoded per segment so
   spaces and `#` are safe — the same shape Logseq's own `make_asset_url` produces;
+- a Windows path becomes `assets:///D/logseq__colon/rest/of/path`. Because `assets:` is a
+  *standard* scheme, Chromium folds the leading slashes into the URL's host, so the drive
+  letter lands there — and a host cannot hold a colon in any form: `%3A` makes the whole
+  URL invalid, a literal `:` is read as a port and the drive is lost. `logseq__colon` is
+  Logseq's own stand-in for it, which the handler turns back into `D:/` before reading the
+  file;
 - a graph-relative path is handed to `logseq.Assets.makeUrl()`, which resolves it inside
   the current DB graph's `assets` folder.
 
