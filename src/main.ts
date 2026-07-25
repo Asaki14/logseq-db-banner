@@ -136,7 +136,7 @@ const settingsSchema: SettingSchemaDesc[] = [
     default: DEFAULT_QUOTE_TAG,
     title: 'Quote source tag / 语录来源标签',
     description:
-      'Top-level blocks of every page carrying this tag become the quote pool; one is picked per day. Leave empty to turn the widget off. / 携带该标签的所有页面的顶层块组成语录池，每天挑选一条；留空则关闭该组件。',
+      'Blocks carrying this tag, plus the top-level blocks of every page carrying it, become the quote pool; one is picked per day. Use "Quote" for Logseq\'s built-in Quote node type. Leave empty to turn the widget off. / 携带该标签的块，以及携带该标签的页面的顶层块，组成语录池，每天挑选一条；填 “Quote” 即使用 Logseq 内置的 Quote 节点类型；留空则关闭该组件。',
   },
   {
     key: 'widgetsHeading',

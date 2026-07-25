@@ -52,20 +52,39 @@ export function journalPageQuery(day: number): string {
 }
 
 /**
- * Top-level block texts of every page tagged `tagName`. `:block/parent` of a
- * top-level block is the page itself, so that clause is what excludes nested
- * blocks; property values live on the page as blocks too and are excluded by
+ * Block texts belonging to the tag named `tagName`, from either of the two
+ * shapes a tag is worn in a DB graph:
+ *
+ * - the block itself carries the tag (`:block/tags`), at any depth. This is what
+ *   a built-in class looks like: `Quote` is `:logseq.class/Quote-block`, a tag
+ *   entity whose `:block/title` is `Quote` and whose `:block/name` is `quote`
+ *   just like a user-made tag, and the file-graph importer attaches it to the
+ *   blocks that were tagged `#quote`. Nothing is tagged at the *page* level, so
+ *   only this branch finds them.
+ * - the block is a top-level block of a page carrying the tag. `:block/parent`
+ *   of a top-level block is the page itself, so that clause is what excludes
+ *   nested blocks.
+ *
+ * `[?block :block/page _]` keeps the first branch to blocks: a page has no
+ * `:block/page`, so a tagged *page* cannot contribute its own title as a quote.
+ * Property values live on their page as blocks too and are excluded by
  * `:logseq.property/created-from-property`.
  */
-export function taggedPageTextsQuery(tagName: string): string {
+export function taggedTextsQuery(tagName: string): string {
   return `
 [:find [?title ...]
  :where
  [?tag :block/name "${escapeQueryString(tagName)}"]
- [?page :block/tags ?tag]
- [?block :block/page ?page]
- [?block :block/parent ?page]
+ (or-join [?block ?tag]
+  (and
+   [?block :block/tags ?tag]
+   [?block :block/page _])
+  (and
+   [?page :block/tags ?tag]
+   [?block :block/page ?page]
+   [?block :block/parent ?page]))
  [?block :block/title ?title]
+ [(not= ?title "")]
  (not [?block :logseq.property/created-from-property _])]
 `
 }
