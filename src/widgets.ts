@@ -19,14 +19,9 @@ import {
   formatPercent,
 } from './format'
 import {
-  dayBounds,
-  daysRemaining,
   dayProgress,
-  lifeBounds,
   lifeProgress,
-  weekBounds,
   weekProgress,
-  yearBounds,
   yearProgress,
   type WeekStart,
 } from './progress'
@@ -87,38 +82,40 @@ export interface WidgetView {
   node: WidgetNode
 }
 
-interface WidgetComputed {
-  fraction: number
-  detail: string
-}
-
 /** Journal marks stay usable for a minute; a day's edits show up soon after. */
 const CALENDAR_TTL_MS = 60_000
 /** The quote list changes rarely, and the pick is date-derived anyway. */
 const QUOTE_TTL_MS = 300_000
 
-function hoursRemaining(now: Date): number {
-  const remaining = dayBounds(now).end.getTime() - now.getTime()
-  return Math.max(0, Math.ceil(remaining / 3_600_000))
-}
+/**
+ * Decimals on the readout. Three of them make the day bar visibly alive — the
+ * last digit is 0.864 s of a day — while the year and life bars sit still, which
+ * is the point of showing them on one scale. The percentage renders in a
+ * fixed-width, tabular-figure field so a changing digit cannot shift the row.
+ */
+const PERCENT_DIGITS = 3
 
 /**
- * A time-progress widget: one head row — label, remaining detail, percentage —
- * over a bar, so four of them stack into the panel card without crowding it.
- * `compute` returns `null` when the settings it needs are missing, and the widget
- * then shows `unavailableHint` instead of a value.
+ * A time-progress widget: one head row — label and percentage — over a bar, so
+ * four of them stack into the panel card without crowding it. `compute` returns
+ * `null` when the settings it needs are missing, and the widget then shows
+ * `unavailableHint` instead of a value.
+ *
+ * The hint span is always present, empty when there is nothing to say: a
+ * constant child count keeps the renderer patching this row in place rather than
+ * rebuilding it.
  */
 function progressWidget(
   id: string,
   label: string,
   unavailableHint: string,
-  compute: (context: WidgetContext) => WidgetComputed | null,
+  compute: (context: WidgetContext) => number | null,
 ): WidgetDefinition {
   return {
     id,
     label,
     build(context) {
-      const computed = compute(context)
+      const fraction = compute(context)
       return {
         class: 'lsdb-widget lsdb-widget--progress',
         data: { widget: id },
@@ -129,13 +126,16 @@ function progressWidget(
               { tag: 'span', class: 'lsdb-widget__label', text: label },
               {
                 tag: 'span',
-                class: 'lsdb-widget__detail',
-                text: computed?.detail ?? unavailableHint,
+                class: 'lsdb-widget__hint',
+                text: fraction === null ? unavailableHint : '',
               },
               {
                 tag: 'span',
                 class: 'lsdb-widget__percent',
-                text: computed ? formatPercent(computed.fraction) : '--%',
+                text:
+                  fraction === null
+                    ? '--%'
+                    : formatPercent(fraction, PERCENT_DIGITS),
               },
             ],
           },
@@ -145,7 +145,7 @@ function progressWidget(
               {
                 class: 'lsdb-widget__bar',
                 style: {
-                  width: computed ? formatBarWidth(computed.fraction) : '0%',
+                  width: fraction === null ? '0%' : formatBarWidth(fraction),
                 },
               },
             ],
@@ -268,34 +268,13 @@ const quoteWidget: WidgetDefinition = {
  */
 export const widgetDefinitions: WidgetDefinition[] = [
   calendarWidget,
-  progressWidget('day', 'Day', '—', ({ now }) => ({
-    fraction: dayProgress(now),
-    detail: `${hoursRemaining(now)}h left`,
-  })),
-  progressWidget('week', 'Week', '—', ({ now, weekStart }) => ({
-    fraction: weekProgress(now, weekStart),
-    detail: `${daysRemaining(now, weekBounds(now, weekStart))}d left`,
-  })),
-  progressWidget('year', 'Year', '—', ({ now }) => ({
-    fraction: yearProgress(now),
-    detail: `${daysRemaining(now, yearBounds(now))}d left`,
-  })),
-  progressWidget(
-    'life',
-    'Life',
-    'set a birth date',
-    ({ now, birthDate, lifespanYears }) => {
-      const fraction = lifeProgress(now, birthDate, lifespanYears)
-      if (fraction === null || !birthDate) return null
-
-      const { end } = lifeBounds(birthDate, lifespanYears)
-      const remainingDays = daysRemaining(now, { start: now, end })
-      const detail =
-        remainingDays === 0
-          ? `${lifespanYears}y reached`
-          : `${(remainingDays / 365.25).toFixed(1)}y left`
-      return { fraction, detail }
-    },
+  progressWidget('day', 'Day', '—', ({ now }) => dayProgress(now)),
+  progressWidget('week', 'Week', '—', ({ now, weekStart }) =>
+    weekProgress(now, weekStart),
+  ),
+  progressWidget('year', 'Year', '—', ({ now }) => yearProgress(now)),
+  progressWidget('life', 'Life', 'set a birth date', (context) =>
+    lifeProgress(context.now, context.birthDate, context.lifespanYears),
   ),
   quoteWidget,
 ]

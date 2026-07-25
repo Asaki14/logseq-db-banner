@@ -7,7 +7,11 @@
  */
 
 import { fromJournalDay } from './progress'
-import { journalContentQuery, taggedPageTextsQuery } from './query'
+import {
+  journalContentQuery,
+  journalPageQuery,
+  taggedPageTextsQuery,
+} from './query'
 import type { WidgetHost } from './widgets'
 
 export const widgetHost: WidgetHost = {
@@ -32,25 +36,37 @@ export const widgetHost: WidgetHost = {
  * Navigating straight to a missing journal page renders a blank content column
  * (verified: `pushState` succeeds, the route becomes `page`, and
  * `getCurrentPage()` stays `null`), so the page is materialised first.
- * `createJournalPage` is idempotent — an existing day comes back with its blocks
- * untouched — and it is called with epoch milliseconds: despite the
+ * `createJournalPage` is called with epoch milliseconds: despite the
  * `string | Date` typing, a string is silently ignored and a number is read as a
  * timestamp, and a `Date` does not survive the plugin bridge as a `Date`.
+ *
+ * It is idempotent, but it is *not* a reliable way to identify the day: it
+ * answers `null` for a journal page that already exists and holds no blocks,
+ * while a page it just created and a page with content both come back as full
+ * entities. An empty day is the ordinary case for a day nobody has written on,
+ * so the day is resolved from the graph whenever the create call declines to
+ * name it.
  */
 export async function openJournalDay(day: number): Promise<void> {
   const date = fromJournalDay(day)
   if (!date) return
 
   try {
-    const page = await logseq.Editor.createJournalPage(
+    const created = await logseq.Editor.createJournalPage(
       date.getTime() as unknown as Date,
     )
-    const name = readPageName(page)
+    const name = readPageName(created) ?? (await readJournalPageUuid(day))
     if (!name) return
     logseq.App.pushState('page', { name })
   } catch (error) {
     console.warn('[db-banner] Could not open the journal page for', day, error)
   }
+}
+
+/** The existing journal page's uuid, which `pushState` accepts as a name. */
+async function readJournalPageUuid(day: number): Promise<string | null> {
+  const rows = await logseq.DB.datascriptQuery<unknown>(journalPageQuery(day))
+  return readStrings(rows)[0] ?? null
 }
 
 function readPageName(page: unknown): string | null {
