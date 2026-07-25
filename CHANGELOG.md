@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The README is split by language: `README.md` is English only, `README.zh-CN.md`
+  is Chinese only, each complete on its own and linking to the other from its first
+  line, so switching language replaces the page instead of scrolling down it. Both
+  reference the same committed screenshot, and the release zip carries both files.
+
 ## [0.2.0] - 2026-07-25
 
 ### Added

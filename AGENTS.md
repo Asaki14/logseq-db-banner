@@ -92,9 +92,9 @@ Same `HOME`, so the throwaway GUI above opens that graph directly. Notes: `upser
 
 ## Conventions
 
-Commit subjects follow Conventional Commits (`feat:`, `chore:`). Feature commits carry their own `CHANGELOG.md` entries under `## [Unreleased]`. The README documents settings in both Chinese and English, so a behaviour change usually touches both language sections.
+Commit subjects follow Conventional Commits (`feat:`, `chore:`). Feature commits carry their own `CHANGELOG.md` entries under `## [Unreleased]`. Documentation is two single-language files, `README.md` (English, primary) and `README.zh-CN.md` (Chinese), cross-linked on their first line and each complete on its own — neither is a stub — so a behaviour change usually touches both.
 
-Releasing is a pushed `v*` tag: `.github/workflows/publish.yml` runs `npm run check`, zips `dist/` with `package.json`, `README.md`, `LICENSE`, `CHANGELOG.md` and `icon.svg`, and attaches that zip to a generated GitHub release — the marketplace installs from the zip, not from the source archive. So a release commit moves the `## [Unreleased]` entries into a dated version section and bumps `package.json`.
+Releasing is a pushed `v*` tag: `.github/workflows/publish.yml` runs `npm run check`, zips `dist/` with `package.json`, both READMEs, `LICENSE`, `CHANGELOG.md` and `icon.svg`, and attaches that zip to a generated GitHub release — the marketplace installs from the zip, not from the source archive. So a release commit moves the `## [Unreleased]` entries into a dated version section and bumps `package.json`.
 
 ## Maintaining this file
 

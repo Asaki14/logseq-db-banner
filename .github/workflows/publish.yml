@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir -p release/logseq-db-banner
           cp -R dist release/logseq-db-banner/
-          cp package.json README.md LICENSE CHANGELOG.md icon.svg release/logseq-db-banner/
+          cp package.json README.md README.zh-CN.md LICENSE CHANGELOG.md icon.svg release/logseq-db-banner/
           cd release
           zip -r "logseq-db-banner-${VERSION}.zip" logseq-db-banner
       - name: Create GitHub Release
