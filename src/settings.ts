@@ -7,7 +7,7 @@ import type { WeekStart } from './progress'
 
 export const DEFAULT_LIFESPAN_YEARS = 85
 /** Fits the month grid beside four progress bars without crowding either. */
-export const DEFAULT_BANNER_HEIGHT = '360px'
+export const DEFAULT_BANNER_HEIGHT = '280px'
 export const DEFAULT_WALLPAPER_POSITION = '50% 50%'
 export const DEFAULT_QUOTE_TAG = 'quotes'
 
