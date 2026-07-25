@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   collectQuotes,
-  dateSeededIndex,
   normalizeQuote,
-  pickQuoteForDate,
+  pickQuote,
   QUOTE_MAX_LENGTH,
   truncateQuote,
 } from './quote'
@@ -64,7 +63,7 @@ describe('collectQuotes', () => {
     ])
     expect(collected).toEqual(['alpha', 'bravo'])
     // Query results arrive as an unordered set, so the same texts in another
-    // order must produce the same list — otherwise the day's pick would move.
+    // order must produce the same list — otherwise the visit's pick would move.
     expect(collectQuotes(['- alpha', 'bravo'])).toEqual(collected)
   })
 
@@ -74,71 +73,50 @@ describe('collectQuotes', () => {
   })
 })
 
-describe('dateSeededIndex', () => {
-  it('has no index for an empty list', () => {
-    expect(dateSeededIndex(0, new Date(2026, 6, 25))).toBe(-1)
-  })
-
-  it('stays inside the list', () => {
-    for (let day = 1; day <= 28; day += 1) {
-      const index = dateSeededIndex(QUOTES.length, new Date(2026, 1, day))
-      expect(index).toBeGreaterThanOrEqual(0)
-      expect(index).toBeLessThan(QUOTES.length)
+describe('pickQuote', () => {
+  it('stays inside the list for any seed', () => {
+    for (let seed = 0; seed < 200; seed += 1) {
+      expect(QUOTES).toContain(pickQuote(QUOTES, seed))
     }
   })
-})
 
-describe('pickQuoteForDate', () => {
-  it('is stable for the whole calendar day', () => {
-    const morning = pickQuoteForDate(QUOTES, new Date(2026, 6, 25, 0, 0, 0))
-    const noon = pickQuoteForDate(QUOTES, new Date(2026, 6, 25, 12, 34, 56))
-    const night = pickQuoteForDate(QUOTES, new Date(2026, 6, 25, 23, 59, 59))
-    expect(morning).toBe(noon)
-    expect(noon).toBe(night)
-  })
-
-  it('changes across days', () => {
-    const week = Array.from({ length: 7 }, (_x, offset) =>
-      pickQuoteForDate(QUOTES, new Date(2026, 6, 20 + offset)),
+  it('is a function of the seed alone, so one visit cannot drift', () => {
+    expect(pickQuote(QUOTES, 1_770_000_000_123)).toBe(
+      pickQuote(QUOTES, 1_770_000_000_123),
     )
-    expect(new Set(week).size).toBeGreaterThan(1)
   })
 
-  it('does not walk the list in order on consecutive days', () => {
-    const indexes = Array.from({ length: 6 }, (_x, offset) =>
-      QUOTES.indexOf(
-        pickQuoteForDate(QUOTES, new Date(2026, 6, 1 + offset)) as string,
-      ),
+  it('moves with the seed', () => {
+    const picks = Array.from({ length: 20 }, (_x, seed) =>
+      pickQuote(QUOTES, 1_770_000_000_000 + seed),
     )
-    const stepsOfOne = indexes
-      .slice(1)
-      .filter((index, i) => index === (indexes[i] + 1) % QUOTES.length)
-    expect(stepsOfOne.length).toBeLessThan(indexes.length - 1)
+    expect(new Set(picks).size).toBeGreaterThan(1)
   })
 
-  it('spreads a year over the whole list', () => {
+  it('never repeats the quote just shown', () => {
+    for (let seed = 0; seed < 500; seed += 1) {
+      expect(pickQuote(QUOTES, seed, 'charlie')).not.toBe('charlie')
+    }
+  })
+
+  it('spreads consecutive seeds over the whole list', () => {
     const counts = new Map<string, number>()
-    for (let day = 0; day < 365; day += 1) {
-      const quote = pickQuoteForDate(QUOTES, new Date(2026, 0, 1 + day))
-      counts.set(quote as string, (counts.get(quote as string) ?? 0) + 1)
+    for (let seed = 0; seed < 500; seed += 1) {
+      const quote = pickQuote(QUOTES, seed) as string
+      counts.set(quote, (counts.get(quote) ?? 0) + 1)
     }
     expect(counts.size).toBe(QUOTES.length)
-    // An even split would be 73 a year; nothing should be close to unused.
-    for (const count of counts.values()) expect(count).toBeGreaterThan(30)
+    // An even split would be 100; nothing should be close to unused.
+    for (const count of counts.values()) expect(count).toBeGreaterThan(40)
   })
 
-  it('is deterministic across processes for a known date', () => {
-    // Pins the hash, so a change of algorithm cannot silently reshuffle
-    // everyone's quote of the day.
-    expect(pickQuoteForDate(QUOTES, new Date(2026, 6, 25))).toBe('alpha')
-    expect(pickQuoteForDate(QUOTES, new Date(2026, 6, 26))).toBe('delta')
-  })
-
-  it('always picks the only quote there is', () => {
-    expect(pickQuoteForDate(['only'], new Date(2026, 6, 25))).toBe('only')
+  it('repeats the only quote there is rather than blanking', () => {
+    expect(pickQuote(['only'], 1, 'only')).toBe('only')
+    expect(pickQuote(['only'], 2)).toBe('only')
   })
 
   it('has nothing to pick from an empty list', () => {
-    expect(pickQuoteForDate([], new Date(2026, 6, 25))).toBeNull()
+    expect(pickQuote([], 1)).toBeNull()
+    expect(pickQuote([], 1, 'alpha')).toBeNull()
   })
 })

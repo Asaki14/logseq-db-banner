@@ -1,11 +1,9 @@
 /**
- * Pure quote selection: one quote per calendar day, picked from the collected
- * list by a date-seeded hash. The same date always yields the same quote, so a
- * re-mount (or the per-second re-render) cannot reshuffle it, and consecutive
- * days scatter across the list rather than walking it in order.
+ * Pure quote selection: one quote per arrival on a journal view, picked from the
+ * collected list by a seeded hash. The seed comes from the arrival, so the caller
+ * decides when the quote moves — see `rotation.ts`, which holds a pick for the
+ * whole visit so the per-second re-render cannot reshuffle it.
  */
-
-import { toJournalDay } from './progress'
 
 /** Longest quote kept; the stylesheet also clamps the rendered height. */
 export const QUOTE_MAX_LENGTH = 240
@@ -37,7 +35,8 @@ export function truncateQuote(text: string, max = QUOTE_MAX_LENGTH): string {
  *
  * The list is sorted, because a datascript result set has no guaranteed order:
  * without this, the same blocks could come back in a different order after a
- * re-mount and move the day's pick.
+ * re-read and move the pick, which — now that the pick deliberately varies per
+ * visit — would be indistinguishable from an arrival.
  */
 export function collectQuotes(values: readonly unknown[]): string[] {
   const seen = new Set<string>()
@@ -49,8 +48,8 @@ export function collectQuotes(values: readonly unknown[]): string[] {
 }
 
 /**
- * splitmix32's finaliser: avalanches the low bits, so seeds one apart (which is
- * what consecutive days are) land far apart in the list.
+ * splitmix32's finaliser: avalanches the low bits, so seeds one apart — which is
+ * what two arrivals a millisecond apart are — land far apart in the list.
  */
 function hash32(seed: number): number {
   let x = seed | 0
@@ -60,17 +59,20 @@ function hash32(seed: number): number {
   return x >>> 0
 }
 
-/** Index into a list of `length` items for `date`, stable for the whole day. */
-export function dateSeededIndex(length: number, date: Date): number {
-  if (!Number.isInteger(length) || length <= 0) return -1
-  return hash32(toJournalDay(date)) % length
-}
-
-/** The quote for `date`, or `null` when there is nothing to pick from. */
-export function pickQuoteForDate(
+/**
+ * The quote for `seed`, or `null` when there is nothing to pick from.
+ *
+ * `previous` — the quote the last visit showed — is excluded, so two arrivals in
+ * a row never repeat themselves while there is anything else to show. A list of
+ * one is the exception: repeating it beats blanking the widget.
+ */
+export function pickQuote(
   quotes: readonly string[],
-  date: Date,
+  seed: number,
+  previous: string | null = null,
 ): string | null {
-  const index = dateSeededIndex(quotes.length, date)
-  return index < 0 ? null : quotes[index]
+  if (quotes.length === 0) return null
+  const rest = quotes.filter((quote) => quote !== previous)
+  const candidates = rest.length > 0 ? rest : quotes
+  return candidates[hash32(seed) % candidates.length]
 }
