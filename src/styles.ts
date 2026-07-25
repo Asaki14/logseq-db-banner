@@ -5,8 +5,8 @@
  * `provideStyle` is global to the host document, so every rule stays scoped to
  * `#lsdb-banner`.
  *
- * The banner is one surface, not a row of widgets: two frosted cards of equal
- * height held apart at its two edges — the month grid at the left, the progress
+ * The banner is one surface, not a row of widgets: two frosted cards of the same
+ * width and height held apart at its two edges — the month grid at the left, the progress
  * bars and the quote at the right, wallpaper between them — sharing one type
  * scale, one corner radius, one gap and one accent.
  * Colours come from the host's own theme variables (`--ls-*`, `--lx-accent-11`),
@@ -27,6 +27,18 @@ export const bannerStyles = `
 #lsdb-banner {
   --lsdb-gap: 12px;
   --lsdb-radius: 14px;
+  --lsdb-calendar-cell: 26px;
+  --lsdb-calendar-cell-gap: 2px;
+  --lsdb-card-padding-x: 12px;
+  /* One width for both cards, and it is the month grid's: 7 cells, the 6 gaps
+     between them, the card's own horizontal padding and its 1px border on each
+     side. The panel has no natural width of its own, so it takes the calendar's
+     rather than the calendar being stretched to meet it — the narrower of the
+     two wins, so less wallpaper is covered and the pair reads as matched. */
+  --lsdb-card-width: calc(
+    7 * var(--lsdb-calendar-cell) + 6 * var(--lsdb-calendar-cell-gap) + 2 *
+      var(--lsdb-card-padding-x) + 2px
+  );
   --lsdb-accent: var(--lx-accent-11, #6aa9d8);
   /* Enough of a scrim to carry plain type on its own — the wallpaper still reads
      through it, but the ink no longer needs a halo to survive a busy photograph. */
@@ -131,7 +143,7 @@ export const bannerStyles = `
   flex-direction: column;
   gap: 9px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 10px var(--lsdb-card-padding-x);
   box-sizing: border-box;
   border: 1px solid var(--lsdb-hairline);
   border-radius: var(--lsdb-radius);
@@ -159,7 +171,7 @@ export const bannerStyles = `
    the last one, and it works the same when the quote is hidden. */
 #lsdb-banner .lsdb-card--panel {
   flex: 0 1 auto;
-  width: clamp(190px, 34%, 250px);
+  width: var(--lsdb-card-width);
   gap: 9px;
   justify-content: space-between;
 }
@@ -177,8 +189,11 @@ export const bannerStyles = `
   font-variant-numeric: tabular-nums;
 }
 
+/* Never shrinks: the labels are single short words, and at the card's width the
+   row has no room to spare, so the deficit has to come out of the hint instead
+   of clipping "Week" to "We…". */
 #lsdb-banner .lsdb-widget__label {
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -187,8 +202,17 @@ export const bannerStyles = `
   letter-spacing: 0.02em;
 }
 
-/* Only ever carries the "not configured" note; empty otherwise. */
+/* Only ever carries the "not configured" note; empty otherwise — and empty is
+   why it grows: it is the spacer that holds the percentage against the row's
+   right edge now that the label no longer stretches. When it does carry text it
+   is the one part of the row allowed to give way, on one line. */
 #lsdb-banner .lsdb-widget__hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
   opacity: 0.78;
   font-size: 11px;
 }
@@ -251,10 +275,10 @@ export const bannerStyles = `
 #lsdb-banner .lsdb-calendar {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(7, 26px);
+  grid-template-columns: repeat(7, var(--lsdb-calendar-cell));
   grid-auto-rows: 24px;
   align-content: start;
-  gap: 2px;
+  gap: var(--lsdb-calendar-cell-gap);
   font-variant-numeric: tabular-nums;
 }
 
