@@ -8,6 +8,7 @@ import type { WeekStart } from './progress'
 export const DEFAULT_LIFESPAN_YEARS = 85
 export const DEFAULT_BANNER_HEIGHT = '220px'
 export const DEFAULT_WALLPAPER_POSITION = '50% 50%'
+export const DEFAULT_QUOTE_TAG = 'quotes'
 
 /** How a wallpaper setting maps onto something the browser can load. */
 export type WallpaperSource =
@@ -148,4 +149,87 @@ export function parseWallpaperPosition(
 ): string {
   const raw = asTrimmedString(value)
   return POSITION_PATTERN.test(raw) ? raw : fallback
+}
+
+/**
+ * The tag whose pages hold the quotes. Written the way users write tags —
+ * `#quotes`, `[[quotes]]`, `Quotes` — and matched against `:block/name`, which
+ * is the lowercased title. An empty setting means "no quote widget" rather than
+ * a fallback to the default, so clearing the field switches the source off.
+ */
+export function parseQuoteTag(value: unknown): string {
+  return stripWrappingQuotes(asTrimmedString(value))
+    .replace(/^#/, '')
+    .replace(/^\[\[(.*)\]\]$/s, '$1')
+    .trim()
+    .toLowerCase()
+}
+
+/** Visibility setting key for a widget id, e.g. `day` -> `showDayWidget`. */
+export function widgetVisibilityKey(widgetId: string): string {
+  return `show${capitalize(widgetId)}Widget`
+}
+
+/**
+ * The phase 1 key for the same setting, from when every widget was a progress
+ * bar. Still read, so an existing configuration keeps its choices.
+ */
+export function legacyWidgetVisibilityKey(widgetId: string): string {
+  return `show${capitalize(widgetId)}Progress`
+}
+
+/** Widget ids the settings say to show; unset means visible. */
+export function resolveWidgetVisibility(
+  settings: Record<string, unknown>,
+  widgetIds: readonly string[],
+): Set<string> {
+  const visible = new Set<string>()
+  for (const id of widgetIds) {
+    const stored = firstDefined(
+      settings[widgetVisibilityKey(id)],
+      settings[legacyWidgetVisibilityKey(id)],
+    )
+    if (parseBoolean(stored)) visible.add(id)
+  }
+  return visible
+}
+
+/** Current shape of the stored settings; bumped when a key is renamed. */
+export const SETTINGS_VERSION = 2
+
+/**
+ * The settings patch that carries phase 1's `show<Id>Progress` choices over to
+ * `show<Id>Widget`, so the renamed key does not silently reset a saved
+ * configuration, and stamps the version so it happens exactly once.
+ *
+ * The stamp is what makes this safe: `useSettingsSchema` has already written the
+ * schema default for every new key by the time this runs, so "is the new key
+ * unset?" cannot tell a default apart from a deliberate choice. Before the stamp
+ * exists, a legacy key is therefore authoritative; afterwards it is ignored, and
+ * a later change to `show<Id>Widget` sticks.
+ */
+export function settingsMigration(
+  settings: Record<string, unknown>,
+  widgetIds: readonly string[],
+): Record<string, unknown> {
+  const stored = settings.settingsVersion
+  const version = typeof stored === 'number' ? stored : Number(stored)
+  if (Number.isFinite(version) && version >= SETTINGS_VERSION) return {}
+
+  const patch: Record<string, unknown> = { settingsVersion: SETTINGS_VERSION }
+  for (const id of widgetIds) {
+    const legacy = settings[legacyWidgetVisibilityKey(id)]
+    if (legacy !== undefined && legacy !== null) {
+      patch[widgetVisibilityKey(id)] = parseBoolean(legacy)
+    }
+  }
+  return patch
+}
+
+function capitalize(value: string): string {
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value
+}
+
+function firstDefined(...values: unknown[]): unknown {
+  return values.find((value) => value !== undefined && value !== null)
 }

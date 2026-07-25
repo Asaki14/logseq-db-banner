@@ -2,12 +2,13 @@
 
 [中文](#中文) · [English](#english)
 
-A page banner for **Logseq DB graphs**: a wallpaper from your own machine plus
-time-progress widgets for the current day, week, year and your life.
+A page banner for **Logseq DB graphs**: a wallpaper from your own machine, time-progress
+widgets for the current day, week, year and your life, a month calendar, and a quote of
+the day taken from your own graph.
 
 ## 中文
 
-一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，右下角是时间进度组件。
+一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，右下角是时间进度、当月日历与每日一言组件。
 
 ### 功能
 
@@ -15,9 +16,11 @@ time-progress widgets for the current day, week, year and your life.
 - **本机壁纸**：支持本机绝对路径、`https://` 链接，或相对于图谱 `assets` 目录的路径。可设置填充方式与位置；图片缺失或无法读取时回退为渐变背景，组件仍然可读。
 - **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示百分比与剩余量。每秒自动刷新，无需手动刷新页面。
 - **人生进度**：由出生日期与预期寿命（默认 85 年）计算。出生日期在未来时显示 0%，寿命已超出时显示 100%。
+- **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期跳转到该天的日志页面——该页面尚不存在时会先创建再跳转。首列跟随 `Week starts on` 设置。
+- **每日一言**：从携带指定标签（默认 `quotes`）的**所有**页面收集顶层块，按日期哈希每天固定挑选一条：同一天内重新挂载不会变，跨天会变。没有该标签的页面、没有顶层块或查询失败时，组件安静地不显示，横幅其余部分照常工作。过长的语录会被截断并限制在 4 行内，不会撑高或撑宽横幅。
 - 切换页面后横幅自动重新挂载。
 
-日历组件与随机名言组件属于 phase 2，本版本不包含。
+日历标记与语录都需要查询图谱，但横幅每秒重绘一次：这两项数据按键（当前月份 / 标签名）缓存，并在路由切换、设置变更或缓存超时（日历 60 秒、语录 5 分钟）时才重新查询，不会每秒打一次数据库。
 
 ### 仅支持 DB graph
 
@@ -35,8 +38,11 @@ time-progress widgets for the current day, week, year and your life.
 | Banner height / 横幅高度 | `220px` | CSS 长度，如 `220px`、`24vh`。 |
 | Birth date / 出生日期 | 空 | `YYYY-MM-DD`。未填写时人生进度显示 `--%`。 |
 | Lifespan in years / 预期寿命（年） | `85` | 人生进度条的分母。 |
-| Week starts on / 一周起始日 | `monday` | `monday`、`sunday` 或 `saturday`，决定周进度的分界。 |
-| Show day / week / year / life progress | 全部开启 | 分别控制四个组件是否显示。 |
+| Week starts on / 一周起始日 | `monday` | `monday`、`sunday` 或 `saturday`，同时决定周进度的分界与日历的首列。 |
+| Quote source tag / 语录来源标签 | `quotes` | 语录来源标签名。可以写 `quotes`、`#quotes` 或 `[[Quotes]]`（大小写不敏感）。留空表示关闭语录组件。 |
+| Show day / week / year / life / calendar / quote widget | 全部开启 | 分别控制六个组件是否显示。 |
+
+组件开关的设置键在 phase 2 从 `show<Id>Progress` 改名为 `show<Id>Widget`（"进度"已经不适用于日历和语录）。插件首次启动时会把旧键的值搬到新键，并写入 `settingsVersion: 2` 作为一次性标记，之后旧键不再参与判断——所以既有配置不会被重置，之后改动新键也不会被旧值覆盖回去。旧键会保留在设置文件里，以便回退到旧版本。
 
 不合法的值会退回默认值，而不是把无效内容写进 CSS。`~` 开头的路径无法在插件沙箱中展开，会被视为未设置——请填写完整绝对路径。
 
@@ -77,7 +83,12 @@ npm run check   # 测试 + 类型检查 + 构建到 dist/
 
 ### 新增组件
 
-`src/widgets.ts` 里的 `widgetDefinitions` 是唯一的组件清单。追加一个 `{ id, label, compute, unavailableHint }` 即可：设置项会按 `show<Id>Progress` 自动生成，渲染层直接遍历该清单，不需要改动横幅代码。
+`src/widgets.ts` 里的 `widgetDefinitions` 是唯一的组件清单。追加一个描述符即可，`banner.ts` 不需要改：
+
+- `build(context, data)` 是纯函数，返回 `src/view.ts` 里的 `WidgetNode` 树（普通数据，因此可以直接单测）；返回 `null` 表示"无内容"，该组件就不渲染。
+- 需要读图谱的组件再实现 `request(context)`，返回 `{ key, ttlMs, load(host) }`：运行时按 `key` 与 `ttlMs` 缓存，渲染时同步读缓存，加载在后台进行。
+- 需要点击行为时，在节点上挂 `action`（如 `{ kind: 'openJournalDay', day }`）；渲染层用事件委托统一分发，组件自己不加监听器。
+- 可见性设置项按 `show<Id>Widget` 自动生成。
 
 ## English
 
@@ -98,9 +109,21 @@ the lower right corner.
   a percentage and a remaining-time line. They refresh every second — no manual reload.
 - **Life progress** is computed from a birth date and a lifespan (85 years by default).
   A birth date in the future reads 0%; an exceeded lifespan reads 100%.
+- **A month calendar** with today highlighted and a marker dot on every day whose journal
+  page already has content. Clicking a date opens that day's journal, creating the page
+  first when it does not exist yet. The first column follows the `Week starts on` setting.
+- **A quote of the day**, collected from the top-level blocks of *every* page carrying a
+  configurable tag (`quotes` by default). The pick is a date-seeded hash, so it is the
+  same all day — a re-mount cannot reshuffle it — and different on another day. A missing
+  tag, a page without top-level blocks or a failed query degrades quietly: no widget, no
+  error, and the rest of the banner keeps working. A long quote is truncated and clamped
+  to four lines, so it cannot resize the banner.
 - The banner re-attaches itself after page navigation.
 
-The calendar widget and the random-quote widget are phase 2 and are not part of this release.
+Both new widgets need graph queries, while the banner re-renders every second: their data
+is cached per key (the visible month, the tag name) and re-read only on a route change, a
+settings change, or once the entry ages past its TTL (60s for the calendar, 5min for the
+quote) — never on a tick.
 
 ### DB graphs only
 
@@ -120,8 +143,16 @@ Configure these under `Settings → Plugin Settings → DB Banner`:
 | Banner height | `220px` | A CSS length such as `220px` or `24vh`. |
 | Birth date | empty | `YYYY-MM-DD`. Without it the life widget shows `--%`. |
 | Lifespan in years | `85` | Denominator of the life-progress bar. |
-| Week starts on | `monday` | `monday`, `sunday` or `saturday`; sets the week-progress boundary. |
-| Show day / week / year / life progress | all on | Per-widget visibility. |
+| Week starts on | `monday` | `monday`, `sunday` or `saturday`; sets the week-progress boundary and the calendar's first column. |
+| Quote source tag | `quotes` | Name of the tag whose pages hold the quotes. `quotes`, `#quotes` and `[[Quotes]]` all work, case-insensitively. Empty turns the quote widget off. |
+| Show day / week / year / life / calendar / quote widget | all on | Per-widget visibility. |
+
+Phase 2 renamed the visibility keys from `show<Id>Progress` to `show<Id>Widget`, since
+"progress" no longer fits a calendar or a quote. On first start the plugin copies the old
+values onto the new keys and writes `settingsVersion: 2` as a one-shot stamp; afterwards
+the old keys are ignored. So an existing configuration is not reset, and a later change to
+a new key is not reverted to the phase 1 value. The old keys stay in the settings file, so
+rolling back to an older build keeps your choices.
 
 Invalid values fall back to the defaults rather than reaching the stylesheet. A path
 starting with `~` cannot be expanded from the plugin sandbox and is treated as unset —
@@ -186,9 +217,18 @@ After changing sources run `npm run build` and reload the plugin in Logseq. Use
 
 ### Adding a widget
 
-`widgetDefinitions` in `src/widgets.ts` is the single widget list. Append one
-`{ id, label, compute, unavailableHint }` entry: its visibility setting is generated as
-`show<Id>Progress`, and the renderer iterates the list, so the banner code stays untouched.
+`widgetDefinitions` in `src/widgets.ts` is the single widget list. Append one descriptor
+and `banner.ts` stays untouched:
+
+- `build(context, data)` is pure and returns a `WidgetNode` tree (see `src/view.ts`) —
+  plain data, so it is unit tested without a DOM. `null` means "nothing to show" and the
+  widget is skipped.
+- A widget that needs the graph also implements `request(context)`, returning
+  `{ key, ttlMs, load(host) }`. The runtime caches per `key` and `ttlMs`, renders from the
+  cache synchronously, and loads in the background.
+- For click behaviour, put an `action` on a node (`{ kind: 'openJournalDay', day }`). The
+  renderer dispatches actions by delegation, so widgets never attach listeners.
+- The visibility setting is generated as `show<Id>Widget`.
 
 ## License
 

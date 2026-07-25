@@ -23,6 +23,8 @@ import {
   ensureBanner,
   HOST_ANCHOR_SELECTOR,
   removeBanner,
+  renderWidgets,
+  setWidgetActionHandler,
 } from './banner'
 import { bannerStyles } from './styles'
 
@@ -103,5 +105,169 @@ describe('injected styles', () => {
 
   it('never restyles the host layout containers', () => {
     expect(bannerStyles).not.toMatch(/#main-content-container|cp__sidebar-main-content/)
+  })
+})
+
+describe('widget rendering', () => {
+  const progressView = (percent: string, width: string) => ({
+    id: 'day',
+    node: {
+      class: 'lsdb-widget lsdb-widget--progress',
+      children: [
+        { tag: 'span' as const, class: 'lsdb-widget__percent', text: percent },
+        { class: 'lsdb-widget__bar', style: { width } },
+      ],
+    },
+  })
+
+  function render(views: Parameters<typeof renderWidgets>[1]) {
+    const banner = ensureBanner(document) as HTMLElement
+    renderWidgets(banner, views, document)
+    return banner.querySelector('.lsdb-banner__widgets') as HTMLElement
+  }
+
+  it('materialises a node tree, including data attributes and styles', () => {
+    const container = render([
+      {
+        id: 'calendar',
+        node: {
+          class: 'lsdb-widget',
+          children: [
+            {
+              tag: 'button',
+              class: 'lsdb-calendar__day',
+              text: '25',
+              title: '2026-07-25',
+              data: { today: 'true', content: 'false' },
+              action: { kind: 'openJournalDay', day: 20260725 },
+            },
+          ],
+        },
+      },
+    ])
+
+    const day = container.querySelector('button') as HTMLButtonElement
+    expect(day.type).toBe('button')
+    expect(day.textContent).toBe('25')
+    expect(day.title).toBe('2026-07-25')
+    expect(day.dataset.today).toBe('true')
+    expect(day.getAttribute('data-lsdb-action')).toBe(
+      '{"kind":"openJournalDay","day":20260725}',
+    )
+  })
+
+  it('updates a widget in place instead of re-creating it', () => {
+    const container = render([progressView('10.0%', '10.000%')])
+    const before = container.firstElementChild
+    const bar = container.querySelector('.lsdb-widget__bar') as HTMLElement
+
+    renderWidgets(
+      container.closest('#lsdb-banner') as HTMLElement,
+      [progressView('20.0%', '20.000%')],
+      document,
+    )
+
+    expect(container.firstElementChild).toBe(before)
+    expect(container.querySelector('.lsdb-widget__bar')).toBe(bar)
+    // jsdom normalises the length, hence `20%` rather than `20.000%`.
+    expect(bar.style.width).toBe('20%')
+    expect(
+      (container.querySelector('.lsdb-widget__percent') as HTMLElement).textContent,
+    ).toBe('20.0%')
+  })
+
+  it('rebuilds when the set of widgets changes', () => {
+    const container = render([progressView('10.0%', '10.000%')])
+    expect(container.dataset.widgetIds).toBe('day')
+
+    renderWidgets(
+      container.closest('#lsdb-banner') as HTMLElement,
+      [],
+      document,
+    )
+    expect(container.children).toHaveLength(0)
+    expect(container.dataset.widgetIds).toBe('')
+  })
+
+  it('drops a data attribute the new node no longer has', () => {
+    const view = (data: Record<string, string>) => ({
+      id: 'calendar',
+      node: { class: 'lsdb-widget', data },
+    })
+    const container = render([view({ today: 'true', content: 'true' })])
+    renderWidgets(
+      container.closest('#lsdb-banner') as HTMLElement,
+      [view({ today: 'true' })],
+      document,
+    )
+
+    const widget = container.firstElementChild as HTMLElement
+    expect(widget.dataset.today).toBe('true')
+    expect(widget.dataset.content).toBeUndefined()
+  })
+
+  it('routes a click on an actionable node to the handler', () => {
+    const actions: unknown[] = []
+    setWidgetActionHandler((action) => actions.push(action))
+
+    const container = render([
+      {
+        id: 'calendar',
+        node: {
+          class: 'lsdb-widget',
+          children: [
+            {
+              tag: 'button',
+              class: 'lsdb-calendar__day',
+              text: '25',
+              action: { kind: 'openJournalDay', day: 20260725 },
+            },
+            { tag: 'span', class: 'lsdb-calendar__pad' },
+          ],
+        },
+      },
+    ])
+
+    ;(container.querySelector('button') as HTMLElement).click()
+    ;(container.querySelector('.lsdb-calendar__pad') as HTMLElement).click()
+    ;(container as HTMLElement).click()
+
+    expect(actions).toEqual([{ kind: 'openJournalDay', day: 20260725 }])
+  })
+})
+
+describe('a banner left behind by a previous plugin instance', () => {
+  it('gets our click listener, since the old instance took its own away', () => {
+    // What survives a reload: the element, without a live listener on it.
+    const orphan = document.createElement('div')
+    orphan.id = BANNER_ID
+    const widgets = document.createElement('div')
+    widgets.className = 'lsdb-banner__widgets'
+    orphan.append(widgets)
+    document.querySelector('.cp__sidebar-main-content')?.prepend(orphan)
+
+    const actions: unknown[] = []
+    setWidgetActionHandler((action) => actions.push(action))
+
+    const banner = ensureBanner(document) as HTMLElement
+    expect(banner).toBe(orphan)
+    renderWidgets(
+      banner,
+      [
+        {
+          id: 'calendar',
+          node: {
+            tag: 'button',
+            class: 'lsdb-calendar__day',
+            text: '25',
+            action: { kind: 'openJournalDay', day: 20260725 },
+          },
+        },
+      ],
+      document,
+    )
+    ;(banner.querySelector('button') as HTMLElement).click()
+
+    expect(actions).toEqual([{ kind: 'openJournalDay', day: 20260725 }])
   })
 })
