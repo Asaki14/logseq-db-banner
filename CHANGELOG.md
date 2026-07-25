@@ -52,7 +52,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   settings, graph view, whiteboards and plugin pages. The decision comes from the
   host's route name plus the current page's journal day, not from the URL.
 
+- The banner is laid out as two frosted-glass cards on the wallpaper: the month
+  calendar on the left, the four progress bars stacked on the right with the quote
+  at their foot, equal height and aligned. They share one type scale, one spacing
+  rhythm, one corner radius and one accent — the colour that marks "today" is the
+  colour that fills the bars. Card and text colours are blended from Logseq's own
+  theme variables (`--ls-primary-background-color`, `--ls-primary-text-color`,
+  `--lx-accent-11`) with `color-mix`, so both themes are followed without a
+  hard-coded palette.
+- The default banner height is `360px` (was `220px`), which fits an unhurried month
+  grid. It remains a minimum: a shorter setting grows the banner to what the cards
+  need rather than clipping them.
+- A widget descriptor now declares which card it belongs on (`group: 'calendar' |
+  'panel'`, default `panel`).
+- Graph-backed widget data is re-read when the graph is actually written to.
+  `logseq.DB.onChanged` does reach a plugin in a DB graph, so a write invalidates
+  the caches — coalesced over 300ms, and forced after 1.5s of an unbroken burst —
+  instead of the answer waiting out its 60s TTL. The TTL stays as a backstop and
+  the per-second tick still never queries the graph.
+- Invalidating cached widget data now marks it stale instead of dropping it: the
+  last value keeps rendering until its replacement lands, so no widget blinks out
+  of the banner during a refresh.
+
 ### Fixed
+
+- Clicking a date in the calendar no longer does nothing every so often. The
+  renderer rebuilt the whole widget container whenever the *set* of rendered
+  widgets changed, and the quote widget dropped out of that set for the ticks
+  between a cache invalidation and its reload — twice per navigation. A rebuild
+  between mousedown and mouseup detaches the pressed button, and Chrome then fires
+  no `click` at all, so the delegated handler never ran. Widgets and cards are now
+  reconciled by key, so one appearing or disappearing leaves every other element
+  in place; measured live, a click no longer produces any DOM churn at all (13
+  child-list mutations before, 0 after).
+- The marker dot for a day you just wrote in appears in about 0.8s instead of up
+  to 60s (measured: 59.6s before, 0.5–1.0s after).
 
 - Clicks on banner widgets keep working after a plugin reload. A banner left behind
   by the previous instance carried only that instance's listener, which died with
