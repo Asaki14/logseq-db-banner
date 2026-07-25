@@ -31,7 +31,7 @@
 
 | 设置 | 默认值 | 说明 |
 | --- | --- | --- |
-| Wallpaper source / 壁纸来源 | 空 | 本机绝对路径（如 `/Users/me/Pictures/wall.jpg`）、`https://` 链接、`data:` URI，或图谱相对路径（如 `../assets/wall.jpg`）。留空、`false`、`none`、`off` 均表示不使用壁纸。 |
+| Wallpaper source / 壁纸来源 | 空 | 本机绝对路径（如 `/Users/me/Pictures/wall.jpg`，Windows 如 `D:\桌面\wall.jpg`）、`https://` 链接、`data:` URI，或图谱相对路径（如 `../assets/wall.jpg`）。留空、`false`、`none`、`off` 均表示不使用壁纸。 |
 | Wallpaper fit / 填充方式 | `cover` | `cover`、`contain` 或 `tile`。 |
 | Wallpaper position / 图片位置 | `50% 50%` | CSS `background-position`，如 `center top`。 |
 | Banner height / 横幅高度 | `280px` | CSS 长度，如 `280px`、`32vh`。这是最小高度：值太小时横幅会自行长高，不裁切。 |
@@ -49,7 +49,8 @@
 
 Logseq 桌面端把 `assets://` 注册为特权协议（`standard`、`secure`、`bypassCSP`、`supportFetchAPI`、`streaming`），其 Electron 处理函数会剥掉 `assets://` 前缀、`decodeURIComponent` 之后按绝对路径直接读文件。所以：
 
-- 绝对路径 → 插件转成 `assets:///绝对/路径`（逐段 percent-encode，空格与 `#` 都安全）；
+- POSIX 绝对路径 → 插件转成 `assets:///绝对/路径`（逐段 percent-encode，空格与 `#` 都安全）；
+- Windows 路径 → 插件转成 `assets:///D/logseq__colon/后面的/路径`。`assets:` 是 *standard* 协议，Chromium 会把前导斜杠折进 URL 的 host，盘符因此落在 host 上，而 host 放不下冒号的任何形式：`%3A` 会让整个 URL 非法，字面 `:` 会被当成端口分隔符、盘符直接丢失。`logseq__colon` 是 Logseq 自己用的替身，处理函数读文件前会把它还原成 `D:/`；
 - 图谱相对路径 → 交给 `logseq.Assets.makeUrl()`，由 Logseq 解析到当前 DB graph 的 `assets` 目录。
 
 `file://` 不在特权协议列表中，渲染进程运行在 `lsp://logseq.com` 源上，因此 `file://` 子资源会被拦截——`assets://` 才是可行路径。
