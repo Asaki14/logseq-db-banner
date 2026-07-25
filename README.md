@@ -14,7 +14,7 @@ and a quote of the day on the right.
 
 - **仅日志页面**：横幅只出现在日志视图——日志主页（多天滚动流）与单个日志页面。普通页面、All pages、设置、图谱视角、白板、插件页面都不会渲染横幅；离开日志视图时横幅会被移除，返回时重新渲染。
 - **本机壁纸**：支持本机绝对路径、`https://` 链接，或相对于图谱 `assets` 目录的路径。可设置填充方式与位置；图片缺失或无法读取时回退为渐变背景，组件仍然可读。
-- **两张卡片的版式**：日历卡在左、进度卡在右，两张卡片各自只占内容所需的大小（不再拉满整条横幅），因此卡片周围与之间都露出壁纸。卡片共用一套字号、间距、圆角与强调色（强调色同时用于"今天"和进度条填充）。遮罩很薄（主题背景色 20%）＋ `blur(20px)` 毛玻璃，壁纸能比较清晰地透过卡片；可读性由**字形光晕**保证——每个字下面画一圈主题背景色的 `text-shadow`，相当于只在字形大小上加遮罩，字与字之间仍然透明。卡片配色取自 Logseq 主题变量（`--ls-primary-background-color`、`--ls-primary-text-color`、`--lx-accent-11`），因此浅色与深色主题都自动跟随。
+- **两张卡片的版式**：日历卡在左、进度卡在右，两张卡片各自只占内容所需的大小（不再拉满整条横幅），因此卡片周围与之间都露出壁纸。卡片共用一套字号、间距、圆角与强调色（强调色同时用于"今天"和进度条填充）。遮罩几乎看不见（主题背景色 7%）＋ `blur(2px)` 极淡毛玻璃，壁纸几乎原样透过卡片；卡片靠**边缘**而不是靠底色成形——一道墨色细线，配上一圈 1px 主题背景色内描边与一层柔和外发光，无论壁纸明暗都能看清卡片轮廓。可读性由**字形光晕**保证——每个字下面画一圈主题背景色的 `text-shadow`，相当于只在字形大小上加遮罩，字与字之间仍然透明。卡片配色取自 Logseq 主题变量（`--ls-primary-background-color`、`--ls-primary-text-color`、`--lx-accent-11`），因此浅色与深色主题都自动跟随。
 - **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示标签、进度条与**三位小数**的百分比（如 `41.286%`）。不再显示"剩余多少小时／天／年"。百分比使用等宽数字（tabular figures）并占固定宽度，末位每约 0.86 秒变化一次也不会让整行左右抖动。每秒自动刷新，无需手动刷新页面。
 - **人生进度**：由出生日期与预期寿命（默认 85 年）计算。出生日期在未来时显示 0%，寿命已超出时显示 100%。
 - **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期都会跳转到该天的日志页面——无论那天已有内容、页面存在但是空的、还是页面根本不存在。首列跟随 `Week starts on` 设置。写入一个块之后，圆点约 1 秒内出现（监听 `logseq.DB.onChanged`）。
@@ -114,9 +114,11 @@ day on the right.
   the right, and each card is only as large as its own content — they no longer stretch
   across the banner, so bare wallpaper shows around and between them. They share one type
   scale, one spacing rhythm, one corner radius and one accent — the same colour marks
-  "today" in the calendar and fills the progress bars. The scrim is thin (20% of the theme
-  background) over a `blur(20px)` frost, so the wallpaper reads clearly *through* a card;
-  legibility comes from a **glyph halo** instead — a `text-shadow` in the theme's
+  "today" in the calendar and fills the progress bars. The scrim is barely there (7% of the
+  theme background) over a `blur(2px)` frost, so the wallpaper reads through a card nearly
+  untouched; what defines a card is its **edge** — an ink hairline with a 1px inset line
+  and a soft outer glow in the theme's background colour, which stays visible over a
+  wallpaper of any brightness. Legibility comes from a **glyph halo** — a `text-shadow` in the theme's
   background colour, which is a scrim the size of each glyph and leaves the space between
   glyphs transparent. Their colours come from Logseq's own theme variables
   (`--ls-primary-background-color`, `--ls-primary-text-color`, `--lx-accent-11`), so light
