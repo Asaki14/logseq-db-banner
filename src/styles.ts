@@ -13,8 +13,9 @@
  * without hard-coded palettes; the fallbacks only apply if a theme drops a
  * variable.
  *
- * The cards are meant to be seen *through*, so the scrim is thin and legibility
- * comes from blur plus a halo drawn in the theme's background colour behind every
+ * The cards are meant to be seen *through*, so the scrim is barely there, the
+ * cards are held together by their edge rather than their fill, and legibility
+ * comes from a halo drawn in the theme's background colour behind every
  * glyph. That pairing is what makes one value work on any wallpaper: the theme
  * always pairs light ink with a dark background and vice versa, so the halo is
  * always the opposite of the text and dark ink stays readable over a night
@@ -28,13 +29,17 @@ export const bannerStyles = `
   --lsdb-accent: var(--lx-accent-11, #6aa9d8);
   --lsdb-surface: color-mix(
     in srgb,
-    var(--ls-primary-background-color, #10131a) 20%,
+    var(--ls-primary-background-color, #10131a) 7%,
     transparent
   );
   --lsdb-ink: var(--ls-primary-text-color, #eceff4);
   --lsdb-hairline: color-mix(in srgb, var(--lsdb-ink) 26%, transparent);
   /* The glyph halo, and the fill of anything that has to read as a surface. */
   --lsdb-halo: var(--ls-primary-background-color, #10131a);
+  /* The card edge, drawn the way the glyphs are: an ink hairline paired with a
+     background-coloured line just inside it, so the pair keeps a visible seam on
+     a wallpaper of any brightness without thickening into a frame. */
+  --lsdb-card-edge: color-mix(in srgb, var(--lsdb-halo) 42%, transparent);
   /* The legibility device, in place of an opaque card: a tight ring stacked
      twice — so it is effectively solid — is a scrim the size of the glyph, and a
      wide soft ring lifts the whole line off a busy wallpaper. Between the glyphs
@@ -115,11 +120,14 @@ export const bannerStyles = `
   box-sizing: border-box;
   border: 1px solid var(--lsdb-hairline);
   border-radius: var(--lsdb-radius);
-  /* Thin scrim, heavy blur: the wallpaper still reads through the card. */
+  /* Barely a scrim, barely a blur: what defines the card is its edge, not its
+     fill, so the wallpaper reads through nearly untouched. Legibility is the
+     glyph halo's job — see --lsdb-text-halo. */
   background: var(--lsdb-surface);
-  backdrop-filter: blur(20px) saturate(130%);
-  -webkit-backdrop-filter: blur(20px) saturate(130%);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(2px) saturate(112%);
+  -webkit-backdrop-filter: blur(2px) saturate(112%);
+  box-shadow: inset 0 0 0 1px var(--lsdb-card-edge),
+    0 1px 6px color-mix(in srgb, var(--lsdb-halo) 22%, transparent);
   text-shadow: var(--lsdb-text-halo);
 }
 
