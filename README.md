@@ -2,25 +2,28 @@
 
 [中文](#中文) · [English](#english)
 
-A page banner for **Logseq DB graphs**: a wallpaper from your own machine, time-progress
-widgets for the current day, week, year and your life, a month calendar, and a quote of
-the day taken from your own graph.
+A page banner for **Logseq DB graphs**: a wallpaper from your own machine behind two
+frosted-glass cards — a month calendar on the left, the day/week/year/life progress bars
+and a quote of the day on the right.
 
 ## 中文
 
-一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，右下角是时间进度、当月日历与每日一言组件。
+一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，之上并排放两张半透明毛玻璃卡片——左边是当月日历，右边自上而下是当天／本周／当年／人生四条进度条，底部是每日一言。
 
 ### 功能
 
 - **仅日志页面**：横幅只出现在日志视图——日志主页（多天滚动流）与单个日志页面。普通页面、All pages、设置、图谱视角、白板、插件页面都不会渲染横幅；离开日志视图时横幅会被移除，返回时重新渲染。
 - **本机壁纸**：支持本机绝对路径、`https://` 链接，或相对于图谱 `assets` 目录的路径。可设置填充方式与位置；图片缺失或无法读取时回退为渐变背景，组件仍然可读。
+- **两张卡片的版式**：日历卡在左、进度卡在右，两张等高对齐，共用一套字号、间距、圆角与强调色（强调色同时用于"今天"和进度条填充）。卡片使用 `backdrop-filter` 毛玻璃：壁纸仍然透出来，文字在任何壁纸上都可读。卡片配色取自 Logseq 主题变量（`--ls-primary-background-color`、`--ls-primary-text-color`、`--lx-accent-11`），因此浅色与深色主题都自动跟随。
 - **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示百分比与剩余量。每秒自动刷新，无需手动刷新页面。
 - **人生进度**：由出生日期与预期寿命（默认 85 年）计算。出生日期在未来时显示 0%，寿命已超出时显示 100%。
-- **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期跳转到该天的日志页面——该页面尚不存在时会先创建再跳转。首列跟随 `Week starts on` 设置。
-- **每日一言**：从携带指定标签（默认 `quotes`）的**所有**页面收集顶层块，按日期哈希每天固定挑选一条：同一天内重新挂载不会变，跨天会变。没有该标签的页面、没有顶层块或查询失败时，组件安静地不显示，横幅其余部分照常工作。过长的语录会被截断并限制在 4 行内，不会撑高或撑宽横幅。
+- **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期跳转到该天的日志页面——该页面尚不存在时会先创建再跳转。首列跟随 `Week starts on` 设置。写入一个块之后，圆点约 1 秒内出现（监听 `logseq.DB.onChanged`）。
+- **每日一言**：显示在进度卡底部（与进度条同属"数字读数"，放在同一张卡里比单独占一块更连贯）。从携带指定标签（默认 `quotes`）的**所有**页面收集顶层块，按日期哈希每天固定挑选一条：同一天内重新挂载不会变，跨天会变。没有该标签的页面、没有顶层块或查询失败时，组件安静地不显示，横幅其余部分照常工作。过长的语录会被截断并限制在 3 行内，不会撑高或撑宽横幅。
 - 切换页面后横幅自动重新挂载。
 
-日历标记与语录都需要查询图谱，但横幅每秒重绘一次：这两项数据按键（当前月份 / 标签名）缓存，并在路由切换、设置变更或缓存超时（日历 60 秒、语录 5 分钟）时才重新查询，不会每秒打一次数据库。
+日历标记与语录都需要查询图谱，但横幅每秒重绘一次：这两项数据按键（当前月份 / 标签名）缓存，并在图谱写入（`logseq.DB.onChanged`，300ms 合并、最长 1.5s 强制刷新）、路由切换、设置变更或缓存超时（日历 60 秒、语录 5 分钟）时才重新查询，不会每秒打一次数据库。缓存失效时旧值继续显示到新值到达，所以刷新过程中组件不会先消失再出现。
+
+横幅高度默认 `360px`，够放下一个不拥挤的月历。它是**最小高度**：填得太小时横幅会长到内容所需的高度，而不是裁切或重叠。
 
 ### 仅支持 DB graph
 
@@ -35,7 +38,7 @@ the day taken from your own graph.
 | Wallpaper source / 壁纸来源 | 空 | 本机绝对路径（如 `/Users/me/Pictures/wall.jpg`）、`https://` 链接、`data:` URI，或图谱相对路径（如 `../assets/wall.jpg`）。留空、`false`、`none`、`off` 均表示不使用壁纸。 |
 | Wallpaper fit / 填充方式 | `cover` | `cover`、`contain` 或 `tile`。 |
 | Wallpaper position / 图片位置 | `50% 50%` | CSS `background-position`，如 `center top`。 |
-| Banner height / 横幅高度 | `220px` | CSS 长度，如 `220px`、`24vh`。 |
+| Banner height / 横幅高度 | `360px` | CSS 长度，如 `360px`、`40vh`。这是最小高度：值太小时横幅会自行长高，不裁切。 |
 | Birth date / 出生日期 | 空 | `YYYY-MM-DD`。未填写时人生进度显示 `--%`。 |
 | Lifespan in years / 预期寿命（年） | `85` | 人生进度条的分母。 |
 | Week starts on / 一周起始日 | `monday` | `monday`、`sunday` 或 `saturday`，同时决定周进度的分界与日历的首列。 |
@@ -88,13 +91,15 @@ npm run check   # 测试 + 类型检查 + 构建到 dist/
 - `build(context, data)` 是纯函数，返回 `src/view.ts` 里的 `WidgetNode` 树（普通数据，因此可以直接单测）；返回 `null` 表示"无内容"，该组件就不渲染。
 - 需要读图谱的组件再实现 `request(context)`，返回 `{ key, ttlMs, load(host) }`：运行时按 `key` 与 `ttlMs` 缓存，渲染时同步读缓存，加载在后台进行。
 - 需要点击行为时，在节点上挂 `action`（如 `{ kind: 'openJournalDay', day }`）；渲染层用事件委托统一分发，组件自己不加监听器。
+- `group` 决定组件落在哪张卡片上：`'calendar'` 或 `'panel'`（默认）。渲染层按组件 id 与卡片 id 做 keyed 复用，组件出现或消失都不会重建邻居的 DOM。
 - 可见性设置项按 `show<Id>Widget` 自动生成。
 
 ## English
 
 A banner plugin for **Logseq DB graphs**. It renders a strip at the top of a journal
-view's content column: your own wallpaper as the background, time-progress widgets in
-the lower right corner.
+view's content column: your own wallpaper as the background, with two frosted-glass cards
+on top — the month calendar on the left, the four time-progress bars and the quote of the
+day on the right.
 
 ### Features
 
@@ -105,6 +110,14 @@ the lower right corner.
 - **Local wallpaper** from an absolute path on your machine, an `https://` URL, or a
   path relative to the graph's `assets` folder. Fit and position are configurable, and
   a missing or unreadable image falls back to a gradient while the widgets stay readable.
+- **Two cards, one surface.** The calendar sits on the left, the progress bars stack on
+  the right, and the two cards are equal height and aligned. They share one type scale,
+  one spacing rhythm, one corner radius and one accent — the same colour marks "today" in
+  the calendar and fills the progress bars. Both are frosted (`backdrop-filter`), so the
+  wallpaper still shows through while the text stays legible on any image. Their colours
+  come from Logseq's own theme variables (`--ls-primary-background-color`,
+  `--ls-primary-text-color`, `--lx-accent-11`), so light and dark themes both work with
+  no hard-coded palette.
 - **Time-progress widgets** for the current day, week, year and life, each with a bar,
   a percentage and a remaining-time line. They refresh every second — no manual reload.
 - **Life progress** is computed from a birth date and a lifespan (85 years by default).
@@ -112,18 +125,28 @@ the lower right corner.
 - **A month calendar** with today highlighted and a marker dot on every day whose journal
   page already has content. Clicking a date opens that day's journal, creating the page
   first when it does not exist yet. The first column follows the `Week starts on` setting.
-- **A quote of the day**, collected from the top-level blocks of *every* page carrying a
+  After you write a block, its dot appears within about a second — the plugin listens to
+  `logseq.DB.onChanged` rather than waiting out a cache TTL.
+- **A quote of the day** at the foot of the progress card — it is a reading like the
+  bars are, so it belongs on the same card rather than as a third loose block. Collected
+  from the top-level blocks of *every* page carrying a
   configurable tag (`quotes` by default). The pick is a date-seeded hash, so it is the
   same all day — a re-mount cannot reshuffle it — and different on another day. A missing
   tag, a page without top-level blocks or a failed query degrades quietly: no widget, no
   error, and the rest of the banner keeps working. A long quote is truncated and clamped
-  to four lines, so it cannot resize the banner.
+  to three lines, so it cannot resize the banner.
 - The banner re-attaches itself after page navigation.
 
-Both new widgets need graph queries, while the banner re-renders every second: their data
-is cached per key (the visible month, the tag name) and re-read only on a route change, a
-settings change, or once the entry ages past its TTL (60s for the calendar, 5min for the
-quote) — never on a tick.
+Both of those widgets need graph queries, while the banner re-renders every second: their
+data is cached per key (the visible month, the tag name) and re-read only on a graph write
+(`logseq.DB.onChanged`, coalesced over 300ms and forced after 1.5s of an unbroken burst),
+a route change, a settings change, or once the entry ages past its TTL (60s for the
+calendar, 5min for the quote) — never on a tick. An invalidated entry keeps being shown
+until its replacement lands, so nothing blinks out of the banner while it refreshes.
+
+The banner is `360px` tall by default, which fits an unhurried month grid. That is a
+*minimum*: set it shorter and the banner grows to whatever its content needs instead of
+clipping or overlapping.
 
 ### DB graphs only
 
@@ -140,7 +163,7 @@ Configure these under `Settings → Plugin Settings → DB Banner`:
 | Wallpaper source | empty | An absolute local path (`/Users/me/Pictures/wall.jpg`), an `https://` URL, a `data:` URI, or a graph-relative path (`../assets/wall.jpg`). Empty, `false`, `none` and `off` all mean "no wallpaper". |
 | Wallpaper fit | `cover` | `cover`, `contain` or `tile`. |
 | Wallpaper position | `50% 50%` | CSS `background-position`, for example `center top`. |
-| Banner height | `220px` | A CSS length such as `220px` or `24vh`. |
+| Banner height | `360px` | A CSS length such as `360px` or `40vh`. It is a minimum — a value too small for the cards makes the banner grow rather than clip. |
 | Birth date | empty | `YYYY-MM-DD`. Without it the life widget shows `--%`. |
 | Lifespan in years | `85` | Denominator of the life-progress bar. |
 | Week starts on | `monday` | `monday`, `sunday` or `saturday`; sets the week-progress boundary and the calendar's first column. |
@@ -228,6 +251,9 @@ and `banner.ts` stays untouched:
   cache synchronously, and loads in the background.
 - For click behaviour, put an `action` on a node (`{ kind: 'openJournalDay', day }`). The
   renderer dispatches actions by delegation, so widgets never attach listeners.
+- `group` picks the card the widget lands on: `'calendar'` or `'panel'` (the default).
+  The renderer reconciles cards by group id and widgets by widget id, so a widget
+  appearing or disappearing never rebuilds its neighbours' DOM.
 - The visibility setting is generated as `show<Id>Widget`.
 
 ## License

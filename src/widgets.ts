@@ -61,9 +61,20 @@ export interface WidgetDataRequest {
   load(host: WidgetHost): Promise<unknown>
 }
 
+/**
+ * The card a widget is rendered into. The banner is two frosted cards side by
+ * side — the month grid on the left, the stacked progress bars and the quote on
+ * the right — and a widget picks its side here rather than in the DOM layer.
+ */
+export type WidgetGroup = 'calendar' | 'panel'
+
+export const DEFAULT_WIDGET_GROUP: WidgetGroup = 'panel'
+
 export interface WidgetDefinition {
   id: string
   label: string
+  /** Defaults to `panel`. */
+  group?: WidgetGroup
   /** Host data needed right now, or `null`/absent when the widget needs none. */
   request?(context: WidgetContext): WidgetDataRequest | null
   /** `null` when the widget has nothing to show and should not be rendered. */
@@ -72,6 +83,7 @@ export interface WidgetDefinition {
 
 export interface WidgetView {
   id: string
+  group: WidgetGroup
   node: WidgetNode
 }
 
@@ -91,9 +103,10 @@ function hoursRemaining(now: Date): number {
 }
 
 /**
- * A time-progress widget: a label, a percentage, a bar and a detail line.
- * `compute` returns `null` when the settings it needs are missing, and the
- * widget then shows `unavailableHint` instead of a value.
+ * A time-progress widget: one head row — label, remaining detail, percentage —
+ * over a bar, so four of them stack into the panel card without crowding it.
+ * `compute` returns `null` when the settings it needs are missing, and the widget
+ * then shows `unavailableHint` instead of a value.
  */
 function progressWidget(
   id: string,
@@ -116,6 +129,11 @@ function progressWidget(
               { tag: 'span', class: 'lsdb-widget__label', text: label },
               {
                 tag: 'span',
+                class: 'lsdb-widget__detail',
+                text: computed?.detail ?? unavailableHint,
+              },
+              {
+                tag: 'span',
                 class: 'lsdb-widget__percent',
                 text: computed ? formatPercent(computed.fraction) : '--%',
               },
@@ -131,10 +149,6 @@ function progressWidget(
                 },
               },
             ],
-          },
-          {
-            class: 'lsdb-widget__detail',
-            text: computed?.detail ?? unavailableHint,
           },
         ],
       }
@@ -158,6 +172,7 @@ function readJournalDays(data: unknown): Set<number> {
 const calendarWidget: WidgetDefinition = {
   id: 'calendar',
   label: 'Calendar',
+  group: 'calendar',
   request({ now }) {
     const year = now.getFullYear()
     const month = now.getMonth() + 1
@@ -247,7 +262,12 @@ const quoteWidget: WidgetDefinition = {
   },
 }
 
+/**
+ * Registry order is DOM order: the calendar card comes first so the document
+ * reads left to right the way the banner is laid out.
+ */
 export const widgetDefinitions: WidgetDefinition[] = [
+  calendarWidget,
   progressWidget('day', 'Day', '—', ({ now }) => ({
     fraction: dayProgress(now),
     detail: `${hoursRemaining(now)}h left`,
@@ -277,7 +297,6 @@ export const widgetDefinitions: WidgetDefinition[] = [
       return { fraction, detail }
     },
   ),
-  calendarWidget,
   quoteWidget,
 ]
 
@@ -304,7 +323,13 @@ export function buildWidgetViews(
   for (const definition of widgetDefinitions) {
     if (!isVisible(definition.id)) continue
     const node = definition.build(context, dataFor(definition.id))
-    if (node) views.push({ id: definition.id, node })
+    if (node) {
+      views.push({
+        id: definition.id,
+        group: definition.group ?? DEFAULT_WIDGET_GROUP,
+        node,
+      })
+    }
   }
   return views
 }

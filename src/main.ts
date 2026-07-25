@@ -11,6 +11,7 @@ import {
   type BannerAppearance,
 } from './banner'
 import { createAsyncCache, type AsyncCache } from './cache'
+import { createCoalescer } from './coalesce'
 import { openJournalDay, widgetHost } from './host'
 import { shouldMountBanner, toHostView, type HostView } from './journal'
 import type { WeekStart } from './progress'
@@ -43,6 +44,10 @@ import {
 } from './widgets'
 
 const TICK_INTERVAL_MS = 1000
+/** How long a burst of graph transactions has to pause before data is re-read. */
+const GRAPH_CHANGE_DELAY_MS = 300
+/** …and how long an unbroken burst — someone typing — may hold that off. */
+const GRAPH_CHANGE_MAX_DELAY_MS = 1500
 
 const widgetIds = widgetDefinitions.map(({ id }) => id)
 
@@ -313,6 +318,21 @@ function invalidateWidgetData(): void {
   for (const cache of widgetDataCaches.values()) cache.invalidate()
 }
 
+/**
+ * Writing a block is what changes the calendar's "this day has content" answer,
+ * and `logseq.DB.onChanged` does reach a plugin in a DB graph (verified on 2.0.1;
+ * the payload carries `blocks`, `txData` and `txMeta`). Editing fires one
+ * transaction after another, so the re-read is coalesced instead of running per
+ * transaction — the tick loop still never queries the graph itself.
+ */
+const graphChangeRefresh = createCoalescer(
+  () => {
+    invalidateWidgetData()
+    tick()
+  },
+  { delayMs: GRAPH_CHANGE_DELAY_MS, maxDelayMs: GRAPH_CHANGE_MAX_DELAY_MS },
+)
+
 function widgetContext(): WidgetContext {
   return {
     now: new Date(),
@@ -397,8 +417,11 @@ async function main(): Promise<void> {
     void mountDecision.refreshAfterCurrent().then(tick)
   })
 
+  logseq.DB.onChanged(() => graphChangeRefresh.schedule())
+
   logseq.beforeunload(async () => {
     window.clearInterval(timer)
+    graphChangeRefresh.cancel()
     removeSettingsListener()
     removeBanner()
   })
