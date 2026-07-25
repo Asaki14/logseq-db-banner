@@ -4,10 +4,12 @@ import {
   dayBounds,
   dayProgress,
   daysRemaining,
+  fromJournalDay,
   lifeBounds,
   lifeProgress,
   spanProgress,
   startOfLocalDay,
+  toJournalDay,
   weekBounds,
   weekProgress,
   yearBounds,
@@ -246,5 +248,34 @@ describe('startOfLocalDay', () => {
     expect([start.getFullYear(), start.getMonth(), start.getDate()]).toEqual([
       2025, 0, 1,
     ])
+  })
+})
+
+describe('journal day conversion', () => {
+  it('formats a local date the way Logseq stores journalDay', () => {
+    expect(toJournalDay(new Date(2026, 6, 25, 23, 59))).toBe(20260725)
+    expect(toJournalDay(new Date(2026, 0, 1))).toBe(20260101)
+    expect(toJournalDay(new Date(2024, 1, 29))).toBe(20240229)
+  })
+
+  it('reads a journal day back as local midnight', () => {
+    const date = fromJournalDay(20260725)
+    expect([date?.getFullYear(), date?.getMonth(), date?.getDate()]).toEqual([
+      2026, 6, 25,
+    ])
+    expect(date?.getHours()).toBe(0)
+  })
+
+  it('round-trips every day of a leap year', () => {
+    for (let day = new Date(2024, 0, 1); day.getFullYear() === 2024; ) {
+      expect(fromJournalDay(toJournalDay(day))?.getTime()).toBe(day.getTime())
+      day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+    }
+  })
+
+  it('rejects values that are not a real date', () => {
+    for (const value of [0, -1, 2026, 20261301, 20260732, 20260229, 1.5]) {
+      expect(fromJournalDay(value)).toBeNull()
+    }
   })
 })

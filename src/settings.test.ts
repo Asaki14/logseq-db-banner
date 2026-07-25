@@ -3,16 +3,24 @@ import {
   DEFAULT_BANNER_HEIGHT,
   DEFAULT_LIFESPAN_YEARS,
   DEFAULT_WALLPAPER_POSITION,
+  legacyWidgetVisibilityKey,
   parseBirthDate,
   parseBoolean,
   parseCssLength,
   parseLifespanYears,
+  parseQuoteTag,
   parseWallpaperFit,
   parseWallpaperPosition,
   parseWeekStart,
   resolveWallpaperSource,
+  resolveWidgetVisibility,
   toAssetsUrl,
+  SETTINGS_VERSION,
+  settingsMigration,
+  widgetVisibilityKey,
 } from './settings'
+
+const WIDGET_IDS = ['day', 'week', 'year', 'life', 'calendar', 'quote']
 
 describe('resolveWallpaperSource', () => {
   it('treats blank and disabling values as unset', () => {
@@ -222,5 +230,105 @@ describe('parseWallpaperPosition', () => {
     expect(parseWallpaperPosition('red; background: url(x)')).toBe(
       DEFAULT_WALLPAPER_POSITION,
     )
+  })
+})
+
+describe('parseQuoteTag', () => {
+  it('accepts the ways users write a tag', () => {
+    expect(parseQuoteTag('quotes')).toBe('quotes')
+    expect(parseQuoteTag('#quotes')).toBe('quotes')
+    expect(parseQuoteTag('[[Quotes]]')).toBe('quotes')
+    expect(parseQuoteTag('"My Quotes"')).toBe('my quotes')
+    expect(parseQuoteTag('  Daily Quotes  ')).toBe('daily quotes')
+  })
+
+  it('reports an empty setting as no source at all', () => {
+    for (const value of ['', '   ', '#', undefined, null, 42]) {
+      expect(parseQuoteTag(value)).toBe('')
+    }
+  })
+})
+
+describe('widget visibility settings', () => {
+  it('names the current and the phase 1 key for a widget', () => {
+    expect(widgetVisibilityKey('day')).toBe('showDayWidget')
+    expect(widgetVisibilityKey('calendar')).toBe('showCalendarWidget')
+    expect(legacyWidgetVisibilityKey('day')).toBe('showDayProgress')
+  })
+
+  it('shows every widget when nothing is stored', () => {
+    expect(resolveWidgetVisibility({}, WIDGET_IDS)).toEqual(new Set(WIDGET_IDS))
+  })
+
+  it('keeps honouring a saved phase 1 configuration', () => {
+    const stored = {
+      showDayProgress: true,
+      showWeekProgress: false,
+      showYearProgress: true,
+      showLifeProgress: false,
+    }
+    expect(resolveWidgetVisibility(stored, WIDGET_IDS)).toEqual(
+      new Set(['day', 'year', 'calendar', 'quote']),
+    )
+  })
+
+  it('prefers the current key once it exists', () => {
+    const stored = { showDayProgress: true, showDayWidget: false }
+    expect(resolveWidgetVisibility(stored, ['day'])).toEqual(new Set())
+  })
+
+  it('reads a boolean stored as a string', () => {
+    expect(resolveWidgetVisibility({ showDayWidget: 'false' }, ['day'])).toEqual(
+      new Set(),
+    )
+  })
+
+})
+
+describe('settingsMigration', () => {
+  it('carries a phase 1 configuration over to the current keys', () => {
+    const stored = {
+      showDayProgress: true,
+      showWeekProgress: false,
+      showYearProgress: true,
+      showLifeProgress: false,
+    }
+    expect(settingsMigration(stored, WIDGET_IDS)).toEqual({
+      settingsVersion: SETTINGS_VERSION,
+      showDayWidget: true,
+      showWeekWidget: false,
+      showYearWidget: true,
+      showLifeWidget: false,
+    })
+  })
+
+  it('wins over the schema defaults the settings pane has already written', () => {
+    // `useSettingsSchema` fills every new key in before the plugin can look, so
+    // an unstamped configuration must take the legacy value regardless.
+    const stored = { showWeekProgress: false, showWeekWidget: true }
+    expect(settingsMigration(stored, ['week'])).toEqual({
+      settingsVersion: SETTINGS_VERSION,
+      showWeekWidget: false,
+    })
+  })
+
+  it('only stamps the version for a fresh install', () => {
+    expect(settingsMigration({}, WIDGET_IDS)).toEqual({
+      settingsVersion: SETTINGS_VERSION,
+    })
+  })
+
+  it('runs once, so a later choice is not reverted to the phase 1 value', () => {
+    const stored = {
+      settingsVersion: SETTINGS_VERSION,
+      showWeekProgress: false,
+      showWeekWidget: true,
+    }
+    expect(settingsMigration(stored, WIDGET_IDS)).toEqual({})
+  })
+
+  it('never invents a value for the widgets phase 1 did not have', () => {
+    const patch = settingsMigration({ showDayProgress: false }, WIDGET_IDS)
+    expect(Object.keys(patch).sort()).toEqual(['settingsVersion', 'showDayWidget'])
   })
 })
