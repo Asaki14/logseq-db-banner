@@ -7,18 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-25
+
 ### Added
 
-- Banner region injected at the top of the Logseq DB content column, re-attached
-  automatically after navigation.
-- Local wallpaper background from an absolute path, an `https://` URL or a
-  graph-relative asset path, with fit/position settings and a gradient fallback
-  when the image cannot be loaded.
-- Time-progress widgets for the current day, week and year, plus a life-progress
-  bar computed from a birth date and a configurable lifespan (default 85 years).
-  They refresh every second without a manual reload.
-- Plugin settings for the wallpaper source, fit, position, banner height, birth
-  date, lifespan, week start and per-widget visibility.
 - Calendar widget: the current month, today highlighted, a marker dot on every day
   whose journal page already holds content, and a click that opens that day's
   journal — creating the page first when it does not exist yet, because navigating
@@ -41,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carrying the tag at any depth, plus the top-level blocks of every page carrying
   it. Setting `Quote source tag` to `Quote` therefore needs no data migration.
 - `Quote source tag` setting.
+- A packaged release: pushing a `v*` tag builds the plugin and publishes a GitHub
+  release with a zip of `dist/`, `package.json`, `README.md`, `LICENSE`,
+  `CHANGELOG.md` and `icon.svg` attached, which is what the Logseq marketplace
+  installs from.
+- A screenshot of the banner on a journal page in the README.
 
 ### Changed
 
@@ -65,10 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   calendar on the left, the four progress bars stacked on the right with the quote
   at their foot. They share one type scale, one spacing
   rhythm, one corner radius and one accent — the colour that marks "today" is the
-  colour that fills the bars. Card and text colours are blended from Logseq's own
-  theme variables (`--ls-primary-background-color`, `--ls-primary-text-color`,
-  `--lx-accent-11`) with `color-mix`, so both themes are followed without a
-  hard-coded palette.
+  colour that fills the bars.
 - The default banner height is `360px` (was `220px`), which fits an unhurried month
   grid. It remains a minimum: a shorter setting grows the banner to what the cards
   need rather than clipping them.
@@ -134,13 +128,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of overflow are unchanged.
 - The type is plainer and no longer glows. The per-glyph halo — four stacked
   `text-shadow` rings in the theme's background colour — is replaced by one soft
-  shadow under the glyph (`0 1px 2px` at 62% of that colour), and the legibility it
-  used to carry moves into the card: the scrim goes from 7% to 32% of the theme
-  background and the frost from `blur(2px)` to `blur(4px)`. The quote is set
-  upright at 12px/1.45 at full strength, where it was italic at 11.5px/1.4 and 94%
-  opacity; the muted weekday and hint labels go from 72% to 78%. The trade is
-  deliberate: the wallpaper is a little less crisp through a card than it was at 7%,
-  which is what buys comfortable text without putting an opaque panel back.
+  shadow under the glyph, and the legibility it used to carry moves into the card:
+  the scrim goes from 7% to 32% and the frost from `blur(2px)` to `blur(4px)`. The
+  quote is set upright at 12px/1.45 at full strength, where it was italic at
+  11.5px/1.4 and 94% opacity; the muted weekday and hint labels go from 72% to 78%.
+  The trade is deliberate: the wallpaper is a little less crisp through a card than
+  it was at 7%, which is what buys comfortable text without putting an opaque panel
+  back.
+- The cards no longer follow the host's light/dark theme. The scrim, the ink and
+  the shadow colour were mixed from `--ls-primary-background-color` and
+  `--ls-primary-text-color`; that variable is *white* in the light theme, so the
+  scrim lightened a dark photograph almost not at all while the theme's dark ink sat
+  on top of that dark image — unreadable. They are constants now
+  (`rgba(12, 15, 22, 0.3)` over the wallpaper, `#f0f3f8` ink, `#0c0f16` shadow), a
+  dark glass carrying light type that works over any wallpaper in either theme, and
+  the shadow under the glyph softens to `0 1px 1px` at 24% now that it no longer
+  has to fight a mismatched scrim. The accent is still the theme's
+  (`--lx-accent-11`).
 
 ### Fixed
 
@@ -177,3 +181,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   beside that column (`flex: 1 1 0%`) and squeezed it to zero width — the page's text rendered one
   character per line at the right edge of the viewport. The banner now mounts
   inside `.cp__sidebar-main-content`, where it takes part in normal block flow.
+
+## [0.1.0] - 2026-07-25
+
+### Added
+
+- Banner region injected at the top of the Logseq DB main content area, re-attached
+  automatically after navigation.
+- Local wallpaper background from an absolute path, an `https://` URL or a
+  graph-relative asset path, with fit/position settings and a gradient fallback
+  when the image cannot be loaded.
+- Time-progress widgets for the current day, week and year, plus a life-progress
+  bar computed from a birth date and a configurable lifespan (default 85 years).
+  They refresh every second without a manual reload.
+- Plugin settings for the wallpaper source, fit, position, banner height, birth
+  date, lifespan, week start and per-widget visibility.
