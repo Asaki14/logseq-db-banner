@@ -25,7 +25,7 @@ import {
   yearProgress,
   type WeekStart,
 } from './progress'
-import { collectQuotes, pickQuoteForDate } from './quote'
+import { collectQuotes } from './quote'
 import type { WidgetNode } from './view'
 
 export interface WidgetContext {
@@ -35,6 +35,12 @@ export interface WidgetContext {
   lifespanYears: number
   /** Tag whose blocks — or whose pages' top-level blocks — hold the quotes. */
   quoteTag: string
+  /**
+   * The quote to show out of the candidates handed in. Injected rather than
+   * derived here because the pick is anchored to the user's arrival on a journal
+   * view, not to this render — see `rotation.ts`.
+   */
+  quoteForVisit(quotes: readonly string[]): string | null
 }
 
 /** The graph reads a widget may ask for. Implemented in `host.ts`. */
@@ -87,7 +93,7 @@ export interface WidgetView {
 
 /** Journal marks stay usable for a minute; a day's edits show up soon after. */
 const CALENDAR_TTL_MS = 60_000
-/** The quote list changes rarely, and the pick is date-derived anyway. */
+/** The quote list changes rarely, and a refresh does not move the visit's pick. */
 const QUOTE_TTL_MS = 300_000
 
 /**
@@ -249,10 +255,10 @@ const quoteWidget: WidgetDefinition = {
       load: (host) => host.taggedTexts(quoteTag),
     }
   },
-  build({ now }, data) {
+  build({ quoteForVisit }, data) {
     // No tagged page, no top-level blocks, or a query that failed: stay silent.
     if (!Array.isArray(data)) return null
-    const quote = pickQuoteForDate(collectQuotes(data), now)
+    const quote = quoteForVisit(collectQuotes(data))
     if (!quote) return null
 
     return {

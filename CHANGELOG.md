@@ -26,11 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   follows the `Week starts on` setting. The has-content query is cached per month
   and dropped on a route change, a settings change or after 60 seconds, so the
   per-second re-render never touches the graph.
-- Quote widget: one quote per calendar day, picked by a date-seeded hash over the
-  blocks belonging to the configurable source tag (`quotes` by default). Stable for
-  the whole day and across a re-mount, different the next day. A missing tag, an
-  empty source or a failed query renders nothing at all, and a long quote is
-  truncated and clamped so it cannot resize the banner.
+- Quote widget: one quote per arrival at a journal view, picked over the blocks
+  belonging to the configurable source tag (`quotes` by default). The pick is
+  anchored to the arrival — the first mount, a return from another page, or a jump
+  from one journal day to another — and then held for the whole visit, so neither
+  the per-second re-render nor a quote-cache refresh moves it; with more than one
+  candidate it never repeats the one just shown. A missing tag, an empty source or
+  a failed query renders nothing at all, and a long quote is truncated and clamped
+  so it cannot resize the banner.
 - The quote source accepts Logseq's built-in `Quote` node type as well as a user
   tag. `Quote` is the built-in class `:logseq.class/Quote-block` — the tag a
   file-graph import puts on blocks that were written as `#quote` — and it is worn

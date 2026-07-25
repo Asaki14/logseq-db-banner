@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shouldMountBanner, toHostView } from './journal'
+import { journalViewKey, shouldMountBanner, toHostView } from './journal'
 
 /**
  * The raw values below are the shapes observed at runtime in Logseq 2.0.1 on a
@@ -74,6 +74,38 @@ describe('shouldMountBanner on everything else', () => {
     for (const journalDay of [0, -20260725, 20260725.5, Number.NaN, 'today', null]) {
       expect(mounts(routeMatch('page'), { journalDay })).toBe(false)
     }
+  })
+})
+
+describe('journalViewKey', () => {
+  const key = (rawRoute: unknown, rawPage: unknown) =>
+    journalViewKey(toHostView(rawRoute, rawPage))
+
+  it('has no key where the banner does not belong', () => {
+    expect(key(routeMatch('page'), normalPage)).toBeNull()
+    expect(key(routeMatch('allPages'), null)).toBeNull()
+    expect(key(null, null)).toBeNull()
+  })
+
+  it('is stable for one journal view', () => {
+    expect(key(routeMatch('page'), journalPage)).toBe(
+      key(routeMatch('page'), journalPage),
+    )
+  })
+
+  it('separates two journal days', () => {
+    expect(key(routeMatch('page'), journalPage)).not.toBe(
+      key(routeMatch('page'), { ...journalPage, journalDay: 20260724 }),
+    )
+  })
+
+  it('separates the feed from a single day, even the same day', () => {
+    const feed = key(routeMatch('home'), null)
+    expect(feed).not.toBeNull()
+    expect(feed).not.toBe(key(routeMatch('page'), journalPage))
+    expect(key(routeMatch('home'), journalPage)).not.toBe(
+      key(routeMatch('page'), journalPage),
+    )
   })
 })
 

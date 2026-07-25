@@ -13,9 +13,10 @@ import {
 import { createAsyncCache, type AsyncCache } from './cache'
 import { createCoalescer } from './coalesce'
 import { openJournalDay, widgetHost } from './host'
-import { shouldMountBanner, toHostView, type HostView } from './journal'
+import { journalViewKey, toHostView, type HostView } from './journal'
 import type { WeekStart } from './progress'
 import { createRefresher } from './refresh'
+import { createQuoteRotation } from './rotation'
 import {
   DEFAULT_BANNER_HEIGHT,
   DEFAULT_LIFESPAN_YEARS,
@@ -136,7 +137,7 @@ const settingsSchema: SettingSchemaDesc[] = [
     default: DEFAULT_QUOTE_TAG,
     title: 'Quote source tag / 语录来源标签',
     description:
-      'Blocks carrying this tag, plus the top-level blocks of every page carrying it, become the quote pool; one is picked per day. Use "Quote" for Logseq\'s built-in Quote node type. Leave empty to turn the widget off. / 携带该标签的块，以及携带该标签的页面的顶层块，组成语录池，每天挑选一条；填 “Quote” 即使用 Logseq 内置的 Quote 节点类型；留空则关闭该组件。',
+      'Blocks carrying this tag, plus the top-level blocks of every page carrying it, become the quote pool; one is picked every time you open a journal view. Use "Quote" for Logseq\'s built-in Quote node type. Leave empty to turn the widget off. / 携带该标签的块，以及携带该标签的页面的顶层块，组成语录池，每次进入日记视图挑选一条；填 “Quote” 即使用 Logseq 内置的 Quote 节点类型；留空则关闭该组件。',
   },
   {
     key: 'widgetsHeading',
@@ -236,7 +237,10 @@ async function resolveWallpaperUrl(
 let config = readConfig()
 let appliedAppearanceKey = ''
 let probedWallpaperUrl: string | null = null
-let isJournalView = false
+/** The journal view on screen, or `null` when the banner does not belong here. */
+let journalKey: string | null = null
+/** Holds the quote for as long as the user stays on one journal view. */
+const quoteRotation = createQuoteRotation()
 
 /**
  * Ask the host where it currently is. The route name separates the journals feed
@@ -268,7 +272,7 @@ async function readHostView(): Promise<HostView> {
  * order and writing a stale answer.
  */
 const mountDecision = createRefresher(async () => {
-  isJournalView = shouldMountBanner(await readHostView())
+  journalKey = journalViewKey(await readHostView())
 })
 
 function appearanceKey(url: string | null): string {
@@ -340,6 +344,7 @@ function widgetContext(): WidgetContext {
     birthDate: config.birthDate,
     lifespanYears: config.lifespanYears,
     quoteTag: config.quoteTag,
+    quoteForVisit: (quotes) => quoteRotation.current(quotes),
   }
 }
 
@@ -347,7 +352,12 @@ function tick(): void {
   // Re-asked every tick so a missed route event, or a route event that fired
   // before the page state settled, self-heals within a second.
   void mountDecision.refresh()
-  if (!isJournalView) {
+  // Arriving on another journal view is what rotates the quote. It is read off
+  // the view's identity rather than the route event, because Logseq fires that
+  // event twice per navigation — and because a missed event still rotates once
+  // the mount decision catches up.
+  quoteRotation.observe(journalKey)
+  if (journalKey === null) {
     removeBanner()
     return
   }
