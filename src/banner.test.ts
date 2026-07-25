@@ -6,10 +6,15 @@
  * invariant that the live fix depends on:
  *
  *   `#main-content-container` is `display: flex; flex-direction: row` in Logseq
- *   2.0.1 — the row holding the content column and the right sidebar. A banner
- *   injected as its child becomes a flex item next to `.cp__sidebar-main-content`
- *   (`flex: 1 1 0%`), which then resolves to zero width. So the banner must land
- *   inside the content column, and the injected CSS must not touch host elements.
+ *   2.0.1, and `.cp__sidebar-main-content` (`flex: 1 1 0%`) is its only child — the
+ *   row exists to centre that column. A banner injected as a second child becomes
+ *   a flex item beside the column, which then resolves to zero width. So the banner
+ *   must land inside the column, and the injected CSS must not touch host elements.
+ *
+ * The fixture mirrors the structure measured live, right sidebar included: it is
+ * `#right-sidebar` under `#app-container`, a sibling of the scroll container rather
+ * than a flex item inside it, which is why opening it narrows the column from the
+ * outside.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -22,12 +27,14 @@ import {
 import { bannerStyles } from './styles'
 
 const HOST_MARKUP = `
-  <div id="main-content-container" class="scrollbar-spacing w-full flex justify-center flex-row">
-    <div class="cp__sidebar-main-content">
-      <div class="mx-auto pb-24"><div id="journals"></div></div>
+  <div id="app-container">
+    <div id="main-content-container" class="scrollbar-spacing w-full flex justify-center flex-row">
+      <div class="cp__sidebar-main-content">
+        <div class="mx-auto pb-24"><div id="journals"></div></div>
+      </div>
     </div>
+    <div id="right-sidebar" class="cp__right-sidebar h-screen"></div>
   </div>
-  <div id="right-sidebar"></div>
 `
 
 beforeEach(() => {

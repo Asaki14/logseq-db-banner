@@ -10,8 +10,8 @@ import type { WidgetView } from './widgets'
 export const BANNER_ID = 'lsdb-banner'
 /**
  * The banner goes inside the content column, never into `#main-content-container`
- * itself: that container is `display: flex; flex-direction: row` — the row holding
- * the content column and the right sidebar — so a banner injected there becomes a
+ * itself: that container is `display: flex; flex-direction: row` (it centres the
+ * column, which is its only child), so a banner injected there becomes a second
  * flex item and starves the column (`flex: 1 1 0%`) down to zero width.
  */
 export const HOST_ANCHOR_SELECTOR =

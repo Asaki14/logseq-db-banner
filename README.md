@@ -58,11 +58,11 @@ Logseq 桌面端把 `assets://` 注册为特权协议（`standard`、`secure`、
 
 判断逻辑集中在 `src/journal.ts` 的纯函数 `shouldMountBanner` 中，可脱离宿主单测。
 
-挂载点是 `#main-content-container .cp__sidebar-main-content`，而不是 `#main-content-container` 本身：后者是 `display: flex; flex-direction: row` 的容器（内容列 + 右侧栏），把横幅插进去会让它变成内容列（`flex: 1 1 0%`）的兄弟 flex item，把内容列压成零宽度。注入的 CSS 全部以 `#lsdb-banner` 开头，不改宿主容器样式。
+挂载点是 `#main-content-container .cp__sidebar-main-content`，而不是 `#main-content-container` 本身：后者是 `display: flex; flex-direction: row` 的滚动容器，唯一的 flex 子元素就是内容列（`flex: 1 1 0%`），把横幅插进去会让它变成内容列的兄弟 flex item，把内容列压成零宽度。（右侧栏 `#right-sidebar` 在 `#app-container` 下，是该滚动容器的兄弟节点，从外部挤窄内容列。）注入的 CSS 全部以 `#lsdb-banner` 开头，不改宿主容器样式。
 
 ### 从源码安装
 
-要求 Node.js 20 或更高版本。
+要求 Node.js `^20.19.0 || ^22.13.0 || >=24.0.0`（即 20.19.0 起的 20.x、22.13.0 起的 22.x，或 24 以上）。这条范围与 `package.json` 的 `engines.node` 一致，来自开发依赖 `jsdom` 的要求；版本不符时 `npm ci` 会直接报版本错误。
 
 ```bash
 npm ci
@@ -158,14 +158,19 @@ The decision comes from host state, not from the URL string:
 tested without a live host.
 
 The mount point is `#main-content-container .cp__sidebar-main-content`, not
-`#main-content-container` itself: that container is `display: flex; flex-direction: row`
-(content column plus right sidebar), so a banner injected there becomes a flex item
-beside the content column (`flex: 1 1 0%`) and squeezes it to zero width. Every injected
-CSS rule is scoped to `#lsdb-banner`; no host container is restyled.
+`#main-content-container` itself: that container is a `display: flex; flex-direction: row`
+scroll container whose only flex child is the content column (`flex: 1 1 0%`), so a banner
+injected there becomes a flex item beside the column and squeezes it to zero width. (The
+right sidebar, `#right-sidebar`, is a sibling of the scroll container under
+`#app-container`, and narrows the column from the outside.) Every injected CSS rule is
+scoped to `#lsdb-banner`; no host container is restyled.
 
 ### Install from source
 
-Node.js 20 or later is required.
+Node.js `^20.19.0 || ^22.13.0 || >=24.0.0` is required — 20.19.0+ on the 20.x line,
+22.13.0+ on 22.x, or anything from 24. That range is `engines.node` in `package.json`
+and comes from the `jsdom` dev dependency; an older runtime fails `npm ci` with a plain
+version error.
 
 ```bash
 npm ci

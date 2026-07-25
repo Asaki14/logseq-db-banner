@@ -11,6 +11,7 @@ import {
 } from './banner'
 import { shouldMountBanner, toHostView, type HostView } from './journal'
 import type { WeekStart } from './progress'
+import { createRefresher } from './refresh'
 import {
   DEFAULT_BANNER_HEIGHT,
   DEFAULT_LIFESPAN_YEARS,
@@ -180,7 +181,6 @@ let config = readConfig()
 let appliedAppearanceKey = ''
 let probedWallpaperUrl: string | null = null
 let isJournalView = false
-let mountDecisionPending = false
 
 /**
  * Ask the host where it currently is. The route name separates the journals feed
@@ -206,18 +206,14 @@ async function readHostView(): Promise<HostView> {
   }
 }
 
-async function updateMountDecision(): Promise<void> {
+/**
+ * Every mount decision goes through this refresher, so the tick loop and the
+ * route-change hook can never have two host reads in flight resolving out of
+ * order and writing a stale answer.
+ */
+const mountDecision = createRefresher(async () => {
   isJournalView = shouldMountBanner(await readHostView())
-}
-
-/** Fire-and-forget refresh for the tick loop, with one request in flight at a time. */
-function queueMountDecision(): void {
-  if (mountDecisionPending) return
-  mountDecisionPending = true
-  void updateMountDecision().finally(() => {
-    mountDecisionPending = false
-  })
-}
+})
 
 function appearanceKey(url: string | null): string {
   const { height, fit, position } = config.appearance
@@ -248,7 +244,7 @@ async function refreshAppearance(banner: HTMLElement): Promise<void> {
 function tick(): void {
   // Re-asked every tick so a missed route event, or a route event that fired
   // before the page state settled, self-heals within a second.
-  queueMountDecision()
+  void mountDecision.refresh()
   if (!isJournalView) {
     removeBanner()
     return
@@ -284,7 +280,7 @@ async function main(): Promise<void> {
   }
 
   logseq.provideStyle(bannerStyles)
-  await updateMountDecision()
+  await mountDecision.refresh()
   tick()
   const timer = window.setInterval(tick, TICK_INTERVAL_MS)
 
@@ -296,9 +292,10 @@ async function main(): Promise<void> {
 
   // The content column is replaced on navigation, so the banner is re-attached —
   // or removed, when the new route is not a journal — on the next tick; deciding
-  // here avoids a visible one-second gap either way.
+  // here avoids a visible one-second gap either way. A read that a tick started
+  // before this event may predate the new route, hence `refreshAfterCurrent`.
   logseq.App.onRouteChanged(() => {
-    void updateMountDecision().then(tick)
+    void mountDecision.refreshAfterCurrent().then(tick)
   })
 
   logseq.beforeunload(async () => {

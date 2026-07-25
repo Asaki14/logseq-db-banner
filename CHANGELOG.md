@@ -30,8 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The banner no longer collapses the journal content column. It used to be
-  injected into `#main-content-container`, which is a `flex-direction: row`
-  container, so the banner became a flex item beside the content column
-  (`flex: 1 1 0%`) and squeezed it to zero width — the page's text rendered one
+  injected into `#main-content-container`, a `flex-direction: row` container whose
+  only flex child is the content column, so the banner became a second flex item
+  beside that column (`flex: 1 1 0%`) and squeezed it to zero width — the page's text rendered one
   character per line at the right edge of the viewport. The banner now mounts
   inside `.cp__sidebar-main-content`, where it takes part in normal block flow.

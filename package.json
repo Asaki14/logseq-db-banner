@@ -26,6 +26,9 @@
     "test": "vitest run",
     "check": "npm run test && npm run build"
   },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+  },
   "logseq": {
     "id": "db-banner",
     "title": "DB Banner",
