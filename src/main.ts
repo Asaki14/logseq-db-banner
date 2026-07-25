@@ -9,7 +9,9 @@ import {
   renderWidgets,
   type BannerAppearance,
 } from './banner'
+import { shouldMountBanner, toHostView, type HostView } from './journal'
 import type { WeekStart } from './progress'
+import { createRefresher } from './refresh'
 import {
   DEFAULT_BANNER_HEIGHT,
   DEFAULT_LIFESPAN_YEARS,
@@ -178,6 +180,40 @@ async function resolveWallpaperUrl(
 let config = readConfig()
 let appliedAppearanceKey = ''
 let probedWallpaperUrl: string | null = null
+let isJournalView = false
+
+/**
+ * Ask the host where it currently is. The route name separates the journals feed
+ * from `/page/:name`, and the current page's journal day separates a journal page
+ * from a normal one; neither `journal?` nor `type` is present on a DB-graph page
+ * entity at runtime, whatever the typings say.
+ *
+ * The route name is read through the path form on purpose: asking for the whole
+ * `route-match` map never resolves across the plugin bridge, because the reitit
+ * match it holds is not serialisable ("[deferred timeout] async call").
+ */
+async function readHostView(): Promise<HostView> {
+  try {
+    const [routeName, page] = await Promise.all([
+      logseq.App.getStateFromStore<unknown>(['route-match', 'data', 'name']),
+      logseq.Editor.getCurrentPage(),
+    ])
+    return toHostView(routeName, page)
+  } catch (error) {
+    console.warn('[db-banner] Could not read the current view', error)
+    // Fail closed: no banner rather than a banner on the wrong page.
+    return { routeName: null, page: null }
+  }
+}
+
+/**
+ * Every mount decision goes through this refresher, so the tick loop and the
+ * route-change hook can never have two host reads in flight resolving out of
+ * order and writing a stale answer.
+ */
+const mountDecision = createRefresher(async () => {
+  isJournalView = shouldMountBanner(await readHostView())
+})
 
 function appearanceKey(url: string | null): string {
   const { height, fit, position } = config.appearance
@@ -206,6 +242,14 @@ async function refreshAppearance(banner: HTMLElement): Promise<void> {
 }
 
 function tick(): void {
+  // Re-asked every tick so a missed route event, or a route event that fired
+  // before the page state settled, self-heals within a second.
+  void mountDecision.refresh()
+  if (!isJournalView) {
+    removeBanner()
+    return
+  }
+
   const banner = ensureBanner()
   if (!banner) return
 
@@ -236,6 +280,7 @@ async function main(): Promise<void> {
   }
 
   logseq.provideStyle(bannerStyles)
+  await mountDecision.refresh()
   tick()
   const timer = window.setInterval(tick, TICK_INTERVAL_MS)
 
@@ -245,10 +290,12 @@ async function main(): Promise<void> {
     tick()
   })
 
-  // The main content area is replaced on navigation, so the banner is re-attached
-  // on the next tick; nudging it here avoids a visible one-second gap.
+  // The content column is replaced on navigation, so the banner is re-attached —
+  // or removed, when the new route is not a journal — on the next tick; deciding
+  // here avoids a visible one-second gap either way. A read that a tick started
+  // before this event may predate the new route, hence `refreshAfterCurrent`.
   logseq.App.onRouteChanged(() => {
-    tick()
+    void mountDecision.refreshAfterCurrent().then(tick)
   })
 
   logseq.beforeunload(async () => {

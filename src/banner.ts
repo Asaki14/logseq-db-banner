@@ -8,7 +8,14 @@ import type { WallpaperFit } from './settings'
 import type { WidgetView } from './widgets'
 
 export const BANNER_ID = 'lsdb-banner'
-const HOST_ANCHOR_SELECTOR = '#main-content-container'
+/**
+ * The banner goes inside the content column, never into `#main-content-container`
+ * itself: that container is `display: flex; flex-direction: row` (it centres the
+ * column, which is its only child), so a banner injected there becomes a second
+ * flex item and starves the column (`flex: 1 1 0%`) down to zero width.
+ */
+export const HOST_ANCHOR_SELECTOR =
+  '#main-content-container .cp__sidebar-main-content'
 
 export interface BannerAppearance {
   height: string
@@ -32,7 +39,7 @@ export function getHostDocument(): Document {
 
 /**
  * Create the banner if absent and make sure it is still the first child of the
- * main content container. Returns `null` while the anchor is not mounted yet.
+ * content column. Returns `null` while the anchor is not mounted yet.
  */
 export function ensureBanner(doc = getHostDocument()): HTMLElement | null {
   const anchor = doc.querySelector(HOST_ANCHOR_SELECTOR)

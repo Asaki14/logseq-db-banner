@@ -7,10 +7,11 @@ time-progress widgets for the current day, week, year and your life.
 
 ## 中文
 
-一个仅适用于 **Logseq DB graph** 的横幅插件。在主内容区顶部渲染一条横幅：背景是本机壁纸，右下角是时间进度组件。
+一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，右下角是时间进度组件。
 
 ### 功能
 
+- **仅日志页面**：横幅只出现在日志视图——日志主页（多天滚动流）与单个日志页面。普通页面、All pages、设置、图谱视角、白板、插件页面都不会渲染横幅；离开日志视图时横幅会被移除，返回时重新渲染。
 - **本机壁纸**：支持本机绝对路径、`https://` 链接，或相对于图谱 `assets` 目录的路径。可设置填充方式与位置；图片缺失或无法读取时回退为渐变背景，组件仍然可读。
 - **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示百分比与剩余量。每秒自动刷新，无需手动刷新页面。
 - **人生进度**：由出生日期与预期寿命（默认 85 年）计算。出生日期在未来时显示 0%，寿命已超出时显示 100%。
@@ -48,9 +49,20 @@ Logseq 桌面端把 `assets://` 注册为特权协议（`standard`、`secure`、
 
 `file://` 不在特权协议列表中，渲染进程运行在 `lsp://logseq.com` 源上，因此 `file://` 子资源会被拦截——`assets://` 才是可行路径。
 
+### 横幅怎么判断"当前是日志视图"，又挂在哪里
+
+判断依据来自宿主状态，不是 URL 字符串：
+
+- 路由名 `logseq.App.getStateFromStore(['route-match', 'data', 'name'])`：`home`、`allJournals` 是日志流，`page` 是 `/page/:name`。注意必须按路径取值——整个 `route-match` 无法跨插件桥序列化，请求它只会超时。
+- 当前页面 `logseq.Editor.getCurrentPage()`：Logseq 2.0.1 的 DB graph 页面实体上既没有 `journal?` 也没有 `type`（与类型声明不符），只有日志页面带 `journalDay`（形如 `20260725`）。
+
+判断逻辑集中在 `src/journal.ts` 的纯函数 `shouldMountBanner` 中，可脱离宿主单测。
+
+挂载点是 `#main-content-container .cp__sidebar-main-content`，而不是 `#main-content-container` 本身：后者是 `display: flex; flex-direction: row` 的滚动容器，唯一的 flex 子元素就是内容列（`flex: 1 1 0%`），把横幅插进去会让它变成内容列的兄弟 flex item，把内容列压成零宽度。（右侧栏 `#right-sidebar` 在 `#app-container` 下，是该滚动容器的兄弟节点，从外部挤窄内容列。）注入的 CSS 全部以 `#lsdb-banner` 开头，不改宿主容器样式。
+
 ### 从源码安装
 
-要求 Node.js 20 或更高版本。
+要求 Node.js `^20.19.0 || ^22.13.0 || >=24.0.0`（即 20.19.0 起的 20.x、22.13.0 起的 22.x，或 24 以上）。这条范围与 `package.json` 的 `engines.node` 一致，来自开发依赖 `jsdom` 的要求；版本不符时 `npm ci` 会直接报版本错误。
 
 ```bash
 npm ci
@@ -69,12 +81,16 @@ npm run check   # 测试 + 类型检查 + 构建到 dist/
 
 ## English
 
-A banner plugin for **Logseq DB graphs**. It renders a strip at the top of the main
-content area: your own wallpaper as the background, time-progress widgets in the
-lower right corner.
+A banner plugin for **Logseq DB graphs**. It renders a strip at the top of a journal
+view's content column: your own wallpaper as the background, time-progress widgets in
+the lower right corner.
 
 ### Features
 
+- **Journal views only.** The banner appears on the journals feed (the scrolling
+  multi-day view) and on a single journal page. Normal pages, all-pages, settings,
+  graph view, whiteboards and plugin pages get none; leaving a journal removes the
+  banner and returning re-renders it.
 - **Local wallpaper** from an absolute path on your machine, an `https://` URL, or a
   path relative to the graph's `assets` folder. Fit and position are configurable, and
   a missing or unreadable image falls back to a gradient while the widgets stay readable.
@@ -126,9 +142,35 @@ filesystem path. So:
 `file://` is not privileged and the renderer runs on the `lsp://logseq.com` origin, so
 `file://` subresources are blocked — `assets://` is the mechanism that works.
 
+### How a journal view is recognised, and where the banner mounts
+
+The decision comes from host state, not from the URL string:
+
+- the route name, `logseq.App.getStateFromStore(['route-match', 'data', 'name'])` —
+  `home` and `allJournals` are journal feeds, `page` is `/page/:name`. It has to be read
+  through the path form: the whole `route-match` map is not serialisable across the
+  plugin bridge, and asking for it only times out;
+- the current page, `logseq.Editor.getCurrentPage()` — on a Logseq 2.0.1 DB graph a page
+  entity carries neither `journal?` nor `type`, whatever the typings say. Only a journal
+  page has `journalDay` (`20260725`).
+
+`shouldMountBanner` in `src/journal.ts` is the pure function that decides, so it is unit
+tested without a live host.
+
+The mount point is `#main-content-container .cp__sidebar-main-content`, not
+`#main-content-container` itself: that container is a `display: flex; flex-direction: row`
+scroll container whose only flex child is the content column (`flex: 1 1 0%`), so a banner
+injected there becomes a flex item beside the column and squeezes it to zero width. (The
+right sidebar, `#right-sidebar`, is a sibling of the scroll container under
+`#app-container`, and narrows the column from the outside.) Every injected CSS rule is
+scoped to `#lsdb-banner`; no host container is restyled.
+
 ### Install from source
 
-Node.js 20 or later is required.
+Node.js `^20.19.0 || ^22.13.0 || >=24.0.0` is required — 20.19.0+ on the 20.x line,
+22.13.0+ on 22.x, or anything from 24. That range is `engines.node` in `package.json`
+and comes from the `jsdom` dev dependency; an older runtime fails `npm ci` with a plain
+version error.
 
 ```bash
 npm ci

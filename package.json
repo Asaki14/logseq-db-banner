@@ -26,6 +26,9 @@
     "test": "vitest run",
     "check": "npm run test && npm run build"
   },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+  },
   "logseq": {
     "id": "db-banner",
     "title": "DB Banner",
@@ -35,6 +38,7 @@
   },
   "devDependencies": {
     "@logseq/libs": "0.2.11",
+    "jsdom": "^29.1.1",
     "typescript": "7.0.2",
     "vite": "8.1.5",
     "vitest": "4.1.10"
