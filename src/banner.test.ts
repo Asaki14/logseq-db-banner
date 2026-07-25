@@ -114,6 +114,17 @@ describe('injected styles', () => {
     expect(row).toMatch(/align-items:\s*stretch/)
   })
 
+  it('takes its scrim and ink from constants, not the host theme', () => {
+    // The banner is a surface over an image, not part of the page. The theme
+    // background is white in the light theme, so a scrim mixed from it left a
+    // dark wallpaper dark under the theme's dark ink.
+    for (const name of ['--lsdb-surface', '--lsdb-ink', '--lsdb-halo']) {
+      const value = bannerStyles.match(new RegExp(`${name}:([^;]*);`))?.[1]
+      expect(value).toBeDefined()
+      expect(value).not.toMatch(/--ls-primary-(background|text)-color/)
+    }
+  })
+
   it('draws one shadow under the type, not a halo ringing every glyph', () => {
     const shadow = bannerStyles.match(/--lsdb-text-shadow:([^;]*);/)?.[1]
     expect(shadow).toBeDefined()
