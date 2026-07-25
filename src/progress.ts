@@ -123,10 +123,3 @@ export function lifeProgress(
   }
   return spanProgress(now, lifeBounds(birthDate, lifespanYears))
 }
-
-/** Whole days from `now` to the end of `span`, never negative. */
-export function daysRemaining(now: Date, span: Span): number {
-  const remaining = span.end.getTime() - now.getTime()
-  if (remaining <= 0) return 0
-  return Math.ceil(remaining / 86_400_000)
-}

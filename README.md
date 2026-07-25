@@ -14,16 +14,16 @@ and a quote of the day on the right.
 
 - **仅日志页面**：横幅只出现在日志视图——日志主页（多天滚动流）与单个日志页面。普通页面、All pages、设置、图谱视角、白板、插件页面都不会渲染横幅；离开日志视图时横幅会被移除，返回时重新渲染。
 - **本机壁纸**：支持本机绝对路径、`https://` 链接，或相对于图谱 `assets` 目录的路径。可设置填充方式与位置；图片缺失或无法读取时回退为渐变背景，组件仍然可读。
-- **两张卡片的版式**：日历卡在左、进度卡在右，两张等高对齐，共用一套字号、间距、圆角与强调色（强调色同时用于"今天"和进度条填充）。卡片使用 `backdrop-filter` 毛玻璃：壁纸仍然透出来，文字在任何壁纸上都可读。卡片配色取自 Logseq 主题变量（`--ls-primary-background-color`、`--ls-primary-text-color`、`--lx-accent-11`），因此浅色与深色主题都自动跟随。
-- **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示百分比与剩余量。每秒自动刷新，无需手动刷新页面。
+- **两张卡片的版式**：日历卡在左、进度卡在右，两张卡片各自只占内容所需的大小（不再拉满整条横幅），因此卡片周围与之间都露出壁纸。卡片共用一套字号、间距、圆角与强调色（强调色同时用于"今天"和进度条填充）。遮罩很薄（主题背景色 20%）＋ `blur(20px)` 毛玻璃，壁纸能比较清晰地透过卡片；可读性由**字形光晕**保证——每个字下面画一圈主题背景色的 `text-shadow`，相当于只在字形大小上加遮罩，字与字之间仍然透明。卡片配色取自 Logseq 主题变量（`--ls-primary-background-color`、`--ls-primary-text-color`、`--lx-accent-11`），因此浅色与深色主题都自动跟随。
+- **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示标签、进度条与**三位小数**的百分比（如 `41.286%`）。不再显示"剩余多少小时／天／年"。百分比使用等宽数字（tabular figures）并占固定宽度，末位每约 0.86 秒变化一次也不会让整行左右抖动。每秒自动刷新，无需手动刷新页面。
 - **人生进度**：由出生日期与预期寿命（默认 85 年）计算。出生日期在未来时显示 0%，寿命已超出时显示 100%。
-- **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期跳转到该天的日志页面——该页面尚不存在时会先创建再跳转。首列跟随 `Week starts on` 设置。写入一个块之后，圆点约 1 秒内出现（监听 `logseq.DB.onChanged`）。
+- **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期都会跳转到该天的日志页面——无论那天已有内容、页面存在但是空的、还是页面根本不存在。首列跟随 `Week starts on` 设置。写入一个块之后，圆点约 1 秒内出现（监听 `logseq.DB.onChanged`）。
 - **每日一言**：显示在进度卡底部（与进度条同属"数字读数"，放在同一张卡里比单独占一块更连贯）。从携带指定标签（默认 `quotes`）的**所有**页面收集顶层块，按日期哈希每天固定挑选一条：同一天内重新挂载不会变，跨天会变。没有该标签的页面、没有顶层块或查询失败时，组件安静地不显示，横幅其余部分照常工作。过长的语录会被截断并限制在 3 行内，不会撑高或撑宽横幅。
 - 切换页面后横幅自动重新挂载。
 
 日历标记与语录都需要查询图谱，但横幅每秒重绘一次：这两项数据按键（当前月份 / 标签名）缓存，并在图谱写入（`logseq.DB.onChanged`，300ms 合并、最长 1.5s 强制刷新）、路由切换、设置变更或缓存超时（日历 60 秒、语录 5 分钟）时才重新查询，不会每秒打一次数据库。缓存失效时旧值继续显示到新值到达，所以刷新过程中组件不会先消失再出现。
 
-横幅高度默认 `360px`，够放下一个不拥挤的月历。它是**最小高度**：填得太小时横幅会长到内容所需的高度，而不是裁切或重叠。
+横幅高度默认 `280px`，够放下一个不拥挤的月历，同时留出成片的壁纸。它是**最小高度**：填得太小时横幅会长到内容所需的高度，而不是裁切或重叠。默认布局下两张卡片约占横幅面积的 35%（此前为 88%）。
 
 ### 仅支持 DB graph
 
@@ -38,7 +38,7 @@ and a quote of the day on the right.
 | Wallpaper source / 壁纸来源 | 空 | 本机绝对路径（如 `/Users/me/Pictures/wall.jpg`）、`https://` 链接、`data:` URI，或图谱相对路径（如 `../assets/wall.jpg`）。留空、`false`、`none`、`off` 均表示不使用壁纸。 |
 | Wallpaper fit / 填充方式 | `cover` | `cover`、`contain` 或 `tile`。 |
 | Wallpaper position / 图片位置 | `50% 50%` | CSS `background-position`，如 `center top`。 |
-| Banner height / 横幅高度 | `360px` | CSS 长度，如 `360px`、`40vh`。这是最小高度：值太小时横幅会自行长高，不裁切。 |
+| Banner height / 横幅高度 | `280px` | CSS 长度，如 `280px`、`32vh`。这是最小高度：值太小时横幅会自行长高，不裁切。 |
 | Birth date / 出生日期 | 空 | `YYYY-MM-DD`。未填写时人生进度显示 `--%`。 |
 | Lifespan in years / 预期寿命（年） | `85` | 人生进度条的分母。 |
 | Week starts on / 一周起始日 | `monday` | `monday`、`sunday` 或 `saturday`，同时决定周进度的分界与日历的首列。 |
@@ -111,20 +111,27 @@ day on the right.
   path relative to the graph's `assets` folder. Fit and position are configurable, and
   a missing or unreadable image falls back to a gradient while the widgets stay readable.
 - **Two cards, one surface.** The calendar sits on the left, the progress bars stack on
-  the right, and the two cards are equal height and aligned. They share one type scale,
-  one spacing rhythm, one corner radius and one accent — the same colour marks "today" in
-  the calendar and fills the progress bars. Both are frosted (`backdrop-filter`), so the
-  wallpaper still shows through while the text stays legible on any image. Their colours
-  come from Logseq's own theme variables (`--ls-primary-background-color`,
-  `--ls-primary-text-color`, `--lx-accent-11`), so light and dark themes both work with
-  no hard-coded palette.
-- **Time-progress widgets** for the current day, week, year and life, each with a bar,
-  a percentage and a remaining-time line. They refresh every second — no manual reload.
+  the right, and each card is only as large as its own content — they no longer stretch
+  across the banner, so bare wallpaper shows around and between them. They share one type
+  scale, one spacing rhythm, one corner radius and one accent — the same colour marks
+  "today" in the calendar and fills the progress bars. The scrim is thin (20% of the theme
+  background) over a `blur(20px)` frost, so the wallpaper reads clearly *through* a card;
+  legibility comes from a **glyph halo** instead — a `text-shadow` in the theme's
+  background colour, which is a scrim the size of each glyph and leaves the space between
+  glyphs transparent. Their colours come from Logseq's own theme variables
+  (`--ls-primary-background-color`, `--ls-primary-text-color`, `--lx-accent-11`), so light
+  and dark themes both work with no hard-coded palette.
+- **Time-progress widgets** for the current day, week, year and life, each with a label,
+  a bar and a percentage to **three decimals** (`41.286%`). There is no remaining-time
+  line. The percentage uses tabular figures in a fixed-width field, so the last digit
+  turning over — about once every 0.86 s on the day bar — cannot shift the row sideways.
+  They refresh every second — no manual reload.
 - **Life progress** is computed from a birth date and a lifespan (85 years by default).
   A birth date in the future reads 0%; an exceeded lifespan reads 100%.
 - **A month calendar** with today highlighted and a marker dot on every day whose journal
-  page already has content. Clicking a date opens that day's journal, creating the page
-  first when it does not exist yet. The first column follows the `Week starts on` setting.
+  page already has content. Clicking a date opens that day's journal — for any day, whether
+  its page has content, exists but is empty, or does not exist at all. The first column
+  follows the `Week starts on` setting.
   After you write a block, its dot appears within about a second — the plugin listens to
   `logseq.DB.onChanged` rather than waiting out a cache TTL.
 - **A quote of the day** at the foot of the progress card — it is a reading like the
@@ -144,9 +151,10 @@ a route change, a settings change, or once the entry ages past its TTL (60s for 
 calendar, 5min for the quote) — never on a tick. An invalidated entry keeps being shown
 until its replacement lands, so nothing blinks out of the banner while it refreshes.
 
-The banner is `360px` tall by default, which fits an unhurried month grid. That is a
-*minimum*: set it shorter and the banner grows to whatever its content needs instead of
-clipping or overlapping.
+The banner is `280px` tall by default, which fits an unhurried month grid and still
+leaves a broad expanse of wallpaper: the two cards cover about 35% of the banner's area,
+where the full-width layout covered 88%. That height is a *minimum*: set it shorter and
+the banner grows to whatever its content needs instead of clipping or overlapping.
 
 ### DB graphs only
 
@@ -163,7 +171,7 @@ Configure these under `Settings → Plugin Settings → DB Banner`:
 | Wallpaper source | empty | An absolute local path (`/Users/me/Pictures/wall.jpg`), an `https://` URL, a `data:` URI, or a graph-relative path (`../assets/wall.jpg`). Empty, `false`, `none` and `off` all mean "no wallpaper". |
 | Wallpaper fit | `cover` | `cover`, `contain` or `tile`. |
 | Wallpaper position | `50% 50%` | CSS `background-position`, for example `center top`. |
-| Banner height | `360px` | A CSS length such as `360px` or `40vh`. It is a minimum — a value too small for the cards makes the banner grow rather than clip. |
+| Banner height | `280px` | A CSS length such as `280px` or `32vh`. It is a minimum — a value too small for the cards makes the banner grow rather than clip. |
 | Birth date | empty | `YYYY-MM-DD`. Without it the life widget shows `--%`. |
 | Lifespan in years | `85` | Denominator of the life-progress bar. |
 | Week starts on | `monday` | `monday`, `sunday` or `saturday`; sets the week-progress boundary and the calendar's first column. |

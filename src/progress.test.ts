@@ -3,7 +3,6 @@ import {
   clamp01,
   dayBounds,
   dayProgress,
-  daysRemaining,
   fromJournalDay,
   lifeBounds,
   lifeProgress,
@@ -216,21 +215,6 @@ describe('spanProgress', () => {
         start: new Date(2025, 6, 26),
         end: new Date(2025, 6, 25),
       }),
-    ).toBe(0)
-  })
-})
-
-describe('daysRemaining', () => {
-  it('counts whole days up to the end of the span', () => {
-    const now = new Date(2025, 6, 25, 12, 0)
-    expect(daysRemaining(now, weekBounds(now, 1))).toBe(3)
-    expect(daysRemaining(now, dayBounds(now))).toBe(1)
-  })
-
-  it('never goes negative', () => {
-    const now = new Date(2025, 6, 25, 12, 0)
-    expect(
-      daysRemaining(now, { start: new Date(2020, 0, 1), end: new Date(2021, 0, 1) }),
     ).toBe(0)
   })
 })

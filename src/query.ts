@@ -38,6 +38,20 @@ export function journalContentQuery(from: number, to: number): string {
 }
 
 /**
+ * The `:block/uuid` of the journal page for `day`, empty when that day has no
+ * page. Needed because `createJournalPage` refuses to identify a journal page
+ * that already exists and holds no blocks — see `openJournalDay`.
+ */
+export function journalPageQuery(day: number): string {
+  return `
+[:find [?uuid ...]
+ :where
+ [?page :block/journal-day ${toQueryInteger(day)}]
+ [?page :block/uuid ?uuid]]
+`
+}
+
+/**
  * Top-level block texts of every page tagged `tagName`. `:block/parent` of a
  * top-level block is the page itself, so that clause is what excludes nested
  * blocks; property values live on the page as blocks too and are excluded by

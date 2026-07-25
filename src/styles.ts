@@ -12,6 +12,13 @@
  * `color-mix`, so light and dark themes are followed without a theme selector and
  * without hard-coded palettes; the fallbacks only apply if a theme drops a
  * variable.
+ *
+ * The cards are meant to be seen *through*, so the scrim is thin and legibility
+ * comes from blur plus a halo drawn in the theme's background colour behind every
+ * glyph. That pairing is what makes one value work on any wallpaper: the theme
+ * always pairs light ink with a dark background and vice versa, so the halo is
+ * always the opposite of the text and dark ink stays readable over a night
+ * photograph exactly as light ink stays readable over a bright one.
  */
 
 export const bannerStyles = `
@@ -21,17 +28,26 @@ export const bannerStyles = `
   --lsdb-accent: var(--lx-accent-11, #6aa9d8);
   --lsdb-surface: color-mix(
     in srgb,
-    var(--ls-primary-background-color, #10131a) 58%,
+    var(--ls-primary-background-color, #10131a) 20%,
     transparent
   );
   --lsdb-ink: var(--ls-primary-text-color, #eceff4);
-  --lsdb-hairline: color-mix(in srgb, var(--lsdb-ink) 18%, transparent);
+  --lsdb-hairline: color-mix(in srgb, var(--lsdb-ink) 26%, transparent);
+  /* The glyph halo, and the fill of anything that has to read as a surface. */
+  --lsdb-halo: var(--ls-primary-background-color, #10131a);
+  /* The legibility device, in place of an opaque card: a tight ring stacked
+     twice — so it is effectively solid — is a scrim the size of the glyph, and a
+     wide soft ring lifts the whole line off a busy wallpaper. Between the glyphs
+     the card stays as transparent as its scrim. */
+  --lsdb-text-halo: 0 0 3px var(--lsdb-halo), 0 0 3px var(--lsdb-halo),
+    0 1px 4px var(--lsdb-halo),
+    0 0 10px color-mix(in srgb, var(--lsdb-halo) 65%, transparent);
 
   position: relative;
   width: 100%;
   /* A minimum, not a fixed height: the cards are in normal flow, so a narrow
      content column that wraps them grows the banner instead of clipping. */
-  min-height: var(--lsdb-banner-height, 360px);
+  min-height: var(--lsdb-banner-height, 280px);
   margin-bottom: 14px;
   padding: 14px;
   box-sizing: border-box;
@@ -74,12 +90,14 @@ export const bannerStyles = `
 
 /* Cards ---------------------------------------------------------------- */
 
+/* Cards sit at the top and keep their own height, so the wallpaper shows below
+   them and to their right instead of being covered edge to edge. */
 #lsdb-banner .lsdb-banner__widgets {
   position: relative;
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
+  align-items: flex-start;
   gap: var(--lsdb-gap);
   min-height: 0;
 }
@@ -91,34 +109,33 @@ export const bannerStyles = `
 #lsdb-banner .lsdb-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 10px 12px;
   box-sizing: border-box;
   border: 1px solid var(--lsdb-hairline);
   border-radius: var(--lsdb-radius);
+  /* Thin scrim, heavy blur: the wallpaper still reads through the card. */
   background: var(--lsdb-surface);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+  text-shadow: var(--lsdb-text-halo);
 }
 
 #lsdb-banner .lsdb-card:empty {
   display: none;
 }
 
-/* The month grid keeps its natural width; the panel takes the rest. */
+/* Both cards are as wide as their content asks for, never wider. */
 #lsdb-banner .lsdb-card--calendar {
-  flex: 0 1 auto;
-  width: clamp(212px, 32%, 288px);
+  flex: 0 0 auto;
 }
 
 #lsdb-banner .lsdb-card--panel {
-  flex: 1 1 210px;
-  /* Spread the bars through the card the way the month grid spreads its rows,
-     so both cards breathe on the same rhythm however tall the banner is. */
-  justify-content: space-between;
-  gap: 12px;
+  flex: 0 1 auto;
+  width: clamp(190px, 34%, 250px);
+  gap: 9px;
 }
 
 /* Widgets -------------------------------------------------------------- */
@@ -140,26 +157,38 @@ export const bannerStyles = `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
-#lsdb-banner .lsdb-widget__detail {
-  opacity: 0.62;
+/* Only ever carries the "not configured" note; empty otherwise. */
+#lsdb-banner .lsdb-widget__hint {
+  opacity: 0.72;
   font-size: 11px;
-  font-variant-numeric: tabular-nums;
 }
 
+/* Fixed field, tabular figures: the third decimal turns over about once a
+   second on the day bar, and must not shove the row around when it does. */
 #lsdb-banner .lsdb-widget__percent {
-  font-weight: 600;
+  flex: 0 0 auto;
+  width: 5.4em;
+  text-align: right;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 #lsdb-banner .lsdb-widget__track {
   margin-top: 5px;
   height: 5px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--lsdb-ink) 16%, transparent);
+  /* Background-coloured rather than ink-coloured, so the empty part of the bar
+     reads as a surface over a bright wallpaper as well as a dark one. */
+  background: color-mix(
+    in srgb,
+    var(--ls-primary-background-color, #10131a) 55%,
+    transparent
+  );
   overflow: hidden;
 }
 
@@ -174,10 +203,10 @@ export const bannerStyles = `
 /* Calendar ------------------------------------------------------------- */
 
 #lsdb-banner .lsdb-widget--calendar {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-height: 0;
 }
 
@@ -191,14 +220,14 @@ export const bannerStyles = `
   font-size: 13px;
 }
 
+/* Fixed cells, so the card is exactly as big as a readable month and no bigger:
+   the grid no longer stretches to whatever height the banner happens to have. */
 #lsdb-banner .lsdb-calendar {
-  flex: 1;
+  flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  /* Rows grow with the banner up to a comfortable cell, then the grid spreads
-     the slack between them rather than stretching a date into a tall slab. */
-  grid-auto-rows: minmax(20px, 34px);
-  align-content: space-evenly;
+  grid-template-columns: repeat(7, 26px);
+  grid-auto-rows: 24px;
+  align-content: start;
   gap: 2px;
   font-variant-numeric: tabular-nums;
 }
@@ -213,7 +242,7 @@ export const bannerStyles = `
 }
 
 #lsdb-banner .lsdb-calendar__weekday {
-  opacity: 0.55;
+  opacity: 0.72;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -227,8 +256,12 @@ export const bannerStyles = `
   background: transparent;
   color: inherit;
   font: inherit;
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
+  /* Restated rather than inherited: the host stylesheet resets text-shadow on
+     every button, and a direct rule beats what the card hands down. */
+  text-shadow: var(--lsdb-text-halo);
 }
 
 #lsdb-banner .lsdb-calendar__day:hover {
@@ -240,6 +273,8 @@ export const bannerStyles = `
   background: var(--lsdb-accent);
   color: var(--ls-primary-background-color, #10131a);
   font-weight: 700;
+  /* The glyph is already the halo's colour; a halo would erase it. */
+  text-shadow: none;
 }
 
 /* The has-content marker. */
@@ -253,11 +288,14 @@ export const bannerStyles = `
   height: 3px;
   border-radius: 50%;
   background: currentColor;
-  opacity: 0.75;
+  /* The dot is painted, not typed, so it needs the halo as a ring of its own. */
+  box-shadow: 0 0 3px 1px var(--lsdb-halo);
+  opacity: 0.9;
 }
 
 #lsdb-banner .lsdb-calendar__day[data-today='true'][data-content='true']::after {
-  opacity: 0.9;
+  box-shadow: none;
+  opacity: 1;
 }
 
 /* Quote ---------------------------------------------------------------- */
@@ -279,6 +317,6 @@ export const bannerStyles = `
   font-size: 11.5px;
   line-height: 1.4;
   font-style: italic;
-  opacity: 0.85;
+  opacity: 0.94;
 }
 `

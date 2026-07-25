@@ -85,12 +85,26 @@ describe('widget registry', () => {
 })
 
 describe('progress widgets', () => {
-  it('renders a percentage, a bar width and a detail line', () => {
+  it('renders a label, a three-decimal percentage and a bar width', () => {
     const day = nodeById(buildWidgetViews(context, allVisible), 'day')
-    expect(texts(day)).toEqual(['Day', '12h left', '50.0%'])
+    // No remaining-time line: the hint slot stays empty while there is a value.
+    expect(texts(day)).toEqual(['Day', '', '50.000%'])
 
     const bar = find(day, (node) => node.class === 'lsdb-widget__bar')
     expect(bar?.style).toEqual({ width: '50.000%' })
+  })
+
+  it('keeps the head row a constant shape so it is patched, not rebuilt', () => {
+    const withValue = nodeById(buildWidgetViews(context, allVisible), 'life')
+    const without = nodeById(
+      buildWidgetViews({ ...context, birthDate: null }, allVisible),
+      'life',
+    )
+    const head = (node: WidgetNode) =>
+      find(node, (candidate) => candidate.class === 'lsdb-widget__head')
+    expect(head(withValue)?.children?.map((child) => child.class)).toEqual(
+      head(without)?.children?.map((child) => child.class),
+    )
   })
 
   it('honours the visibility predicate and keeps registry order', () => {
@@ -103,11 +117,11 @@ describe('progress widgets', () => {
   })
 
   it('uses the configured week start', () => {
-    const detail = (weekStart: 0 | 1) =>
+    const week = (weekStart: 0 | 1) =>
       texts(nodeById(buildWidgetViews({ ...context, weekStart }, allVisible), 'week'))
     // Friday noon is 4.5 of 7 days into a Monday week, 5.5 into a Sunday one.
-    expect(detail(1)).toEqual(['Week', '3d left', '64.3%'])
-    expect(detail(0)).toEqual(['Week', '2d left', '78.6%'])
+    expect(week(1)).toEqual(['Week', '', '64.286%'])
+    expect(week(0)).toEqual(['Week', '', '78.571%'])
   })
 
   it('marks the life widget unavailable without a birth date', () => {
@@ -121,17 +135,17 @@ describe('progress widgets', () => {
     })
   })
 
-  it('reports the remaining years of a normal lifespan', () => {
+  it('reports life progress to three decimals', () => {
     const life = nodeById(buildWidgetViews(context, allVisible), 'life')
-    expect(texts(life)).toEqual(['Life', '49.4y left', '41.8%'])
+    expect(texts(life)).toEqual(['Life', '', '41.840%'])
   })
 
-  it('caps an exceeded lifespan at 100% and says so', () => {
+  it('caps an exceeded lifespan at 100%', () => {
     const life = nodeById(
       buildWidgetViews({ ...context, birthDate: new Date(1900, 0, 1) }, allVisible),
       'life',
     )
-    expect(texts(life)).toEqual(['Life', '85y reached', '100.0%'])
+    expect(texts(life)).toEqual(['Life', '', '100.000%'])
   })
 
   it('is 100% on the last day of a leap-year lifespan boundary', () => {
@@ -143,7 +157,7 @@ describe('progress widgets', () => {
       ),
       'life',
     )
-    expect(texts(life)).toContain('100.0%')
+    expect(texts(life)).toContain('100.000%')
   })
 })
 
