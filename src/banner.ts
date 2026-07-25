@@ -2,9 +2,20 @@
  * DOM wiring for the banner region. Logseq's main content area lives in the host
  * document, not in the plugin iframe, so the banner element is created there and
  * re-attached whenever the app re-renders that subtree.
+ *
+ * Widgets arrive as `WidgetNode` trees and are patched into the DOM in place, so
+ * the per-second tick writes only the attributes that actually changed and never
+ * re-creates an element the host app is laying out.
  */
 
 import type { WallpaperFit } from './settings'
+import {
+  ACTION_ATTRIBUTE,
+  decodeAction,
+  encodeAction,
+  type WidgetAction,
+  type WidgetNode,
+} from './view'
 import type { WidgetView } from './widgets'
 
 export const BANNER_ID = 'lsdb-banner'
@@ -24,14 +35,21 @@ export interface BannerAppearance {
   position: string
 }
 
-interface WidgetElements {
-  root: HTMLElement
-  percent: HTMLElement
-  detail: HTMLElement
-  bar: HTMLElement
-}
+/** Widget roots by id, so a tick can patch instead of rebuilding. */
+const widgetElements = new Map<string, HTMLElement>()
 
-const widgetElements = new Map<string, WidgetElements>()
+let actionHandler: ((action: WidgetAction) => void) | null = null
+
+/**
+ * Register what a click on an actionable widget node does. Clicks are delegated
+ * from the widgets container, so widgets need no listeners of their own and a
+ * re-render cannot leak one.
+ */
+export function setWidgetActionHandler(
+  handler: (action: WidgetAction) => void,
+): void {
+  actionHandler = handler
+}
 
 export function getHostDocument(): Document {
   return window.parent.document
@@ -48,6 +66,12 @@ export function ensureBanner(doc = getHostDocument()): HTMLElement | null {
   const existing = doc.getElementById(BANNER_ID)
   if (existing) {
     if (existing.parentElement !== anchor) anchor.prepend(existing)
+    // A banner left behind by a previous plugin instance carries that instance's
+    // click listener, which died with its iframe. Re-adding ours is a no-op when
+    // it is already attached, and revives clicks when it is not.
+    const widgets = existing.querySelector('.lsdb-banner__widgets')
+    widgets?.removeEventListener('click', onWidgetClick)
+    widgets?.addEventListener('click', onWidgetClick)
     return existing
   }
 
@@ -59,6 +83,7 @@ export function ensureBanner(doc = getHostDocument()): HTMLElement | null {
   image.className = 'lsdb-banner__image'
   const widgets = doc.createElement('div')
   widgets.className = 'lsdb-banner__widgets'
+  widgets.addEventListener('click', onWidgetClick)
 
   banner.append(image, widgets)
   anchor.prepend(banner)
@@ -129,44 +154,120 @@ export function renderWidgets(
     container.replaceChildren()
     widgetElements.clear()
     for (const view of views) {
-      container.append(createWidgetElement(view, doc))
+      const element = createElement(view.node, doc)
+      widgetElements.set(view.id, element)
+      container.append(element)
     }
     container.dataset.widgetIds = wanted
+    return
   }
 
   for (const view of views) {
-    const elements = widgetElements.get(view.id)
-    if (!elements) continue
-    elements.percent.textContent = view.percentText
-    elements.detail.textContent = view.detail
-    elements.bar.style.width = view.barWidth
+    const element = widgetElements.get(view.id)
+    if (!element) continue
+    if (patchElement(element, view.node, doc)) continue
+
+    // A shape the patch could not reach (a different tag): swap the widget.
+    const replacement = createElement(view.node, doc)
+    element.replaceWith(replacement)
+    widgetElements.set(view.id, replacement)
   }
 }
 
-function createWidgetElement(view: WidgetView, doc: Document): HTMLElement {
-  const root = doc.createElement('div')
-  root.className = 'lsdb-widget'
-  root.dataset.widget = view.id
+/**
+ * `instanceof` is not used on anything from the host document: these nodes come
+ * from `window.parent`, so they are instances of *that* realm's constructors and
+ * every `instanceof Element` check inside the plugin iframe would be false.
+ */
+function onWidgetClick(event: Event): void {
+  const target = event.target as Element | null
+  if (typeof target?.closest !== 'function') return
 
-  const head = doc.createElement('div')
-  head.className = 'lsdb-widget__head'
-  const label = doc.createElement('span')
-  label.className = 'lsdb-widget__label'
-  label.textContent = view.label
-  const percent = doc.createElement('span')
-  percent.className = 'lsdb-widget__percent'
-  head.append(label, percent)
+  const actionable = target.closest(`[${ACTION_ATTRIBUTE}]`)
+  const action = decodeAction(actionable?.getAttribute(ACTION_ATTRIBUTE))
+  if (!action) return
 
-  const track = doc.createElement('div')
-  track.className = 'lsdb-widget__track'
-  const bar = doc.createElement('div')
-  bar.className = 'lsdb-widget__bar'
-  track.append(bar)
+  event.preventDefault()
+  event.stopPropagation()
+  actionHandler?.(action)
+}
 
-  const detail = doc.createElement('div')
-  detail.className = 'lsdb-widget__detail'
+function createElement(node: WidgetNode, doc: Document): HTMLElement {
+  const element = doc.createElement(node.tag ?? 'div')
+  // Keeps a calendar day from submitting anything it may end up nested in.
+  if (node.tag === 'button') element.setAttribute('type', 'button')
+  patchElement(element, node, doc)
+  return element
+}
 
-  root.append(head, track, detail)
-  widgetElements.set(view.id, { root, percent, detail, bar })
-  return root
+/**
+ * Bring `element` in line with `node`, writing only what differs. Returns `false`
+ * when the element cannot represent the node at all, which is the caller's cue to
+ * replace it.
+ */
+function patchElement(
+  element: HTMLElement,
+  node: WidgetNode,
+  doc: Document,
+): boolean {
+  if (element.tagName !== (node.tag ?? 'div').toUpperCase()) return false
+
+  const className = node.class ?? ''
+  if (element.className !== className) element.className = className
+
+  const title = node.title ?? ''
+  if (element.title !== title) element.title = title
+
+  patchDataset(element, node)
+  patchStyle(element, node)
+
+  const action = node.action ? encodeAction(node.action) : null
+  if (action === null) {
+    element.removeAttribute(ACTION_ATTRIBUTE)
+  } else if (element.getAttribute(ACTION_ATTRIBUTE) !== action) {
+    element.setAttribute(ACTION_ATTRIBUTE, action)
+  }
+
+  const children = node.children ?? []
+  if (children.length === 0) {
+    const text = node.text ?? ''
+    if (element.textContent !== text) element.textContent = text
+    return true
+  }
+
+  if (element.childElementCount !== children.length) {
+    element.replaceChildren(
+      ...children.map((child) => createElement(child, doc)),
+    )
+    return true
+  }
+  children.forEach((child, index) => {
+    const existing = element.children[index] as HTMLElement
+    if (patchElement(existing, child, doc)) return
+    existing.replaceWith(createElement(child, doc))
+  })
+  return true
+}
+
+function patchDataset(element: HTMLElement, node: WidgetNode): void {
+  const data = node.data ?? {}
+  for (const key of Object.keys(element.dataset)) {
+    // `data-lsdb-action` is handled separately and is not part of `node.data`.
+    if (key !== 'lsdbAction' && !(key in data)) delete element.dataset[key]
+  }
+  for (const [key, value] of Object.entries(data)) {
+    if (element.dataset[key] !== value) element.dataset[key] = value
+  }
+}
+
+function patchStyle(element: HTMLElement, node: WidgetNode): void {
+  const style = node.style ?? {}
+  for (const [property, value] of Object.entries(style)) {
+    if (element.style.getPropertyValue(property) !== value) {
+      element.style.setProperty(property, value)
+    }
+  }
+  for (const property of [...element.style]) {
+    if (!(property in style)) element.style.removeProperty(property)
+  }
 }

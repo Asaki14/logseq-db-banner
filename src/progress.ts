@@ -29,6 +29,31 @@ export function startOfLocalDay(date: Date, dayOffset = 0): Date {
   )
 }
 
+/**
+ * A local date as the `YYYYMMDD` integer Logseq stores on journal pages
+ * (`journalDay`), which is also a convenient day-stable seed.
+ */
+export function toJournalDay(date: Date): number {
+  return (
+    date.getFullYear() * 10_000 +
+    (date.getMonth() + 1) * 100 +
+    date.getDate()
+  )
+}
+
+/** Local midnight of a `YYYYMMDD` integer, or `null` when it is not one. */
+export function fromJournalDay(day: number): Date | null {
+  if (!Number.isInteger(day) || day < 10_000_101) return null
+
+  const year = Math.floor(day / 10_000)
+  const month = Math.floor(day / 100) % 100
+  const dayOfMonth = day % 100
+  if (month < 1 || month > 12 || dayOfMonth < 1 || dayOfMonth > 31) return null
+
+  const date = new Date(year, month - 1, dayOfMonth)
+  return toJournalDay(date) === day ? date : null
+}
+
 export function dayBounds(now: Date): Span {
   return { start: startOfLocalDay(now), end: startOfLocalDay(now, 1) }
 }

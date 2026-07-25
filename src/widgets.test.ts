@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { buildWidgetViews, widgetDefinitions, type WidgetContext } from './widgets'
+import { describe, expect, it, vi } from 'vitest'
+import type { WidgetNode } from './view'
+import {
+  buildWidgetViews,
+  widgetDataRequests,
+  widgetDefinitions,
+  type WidgetContext,
+  type WidgetHost,
+} from './widgets'
 
 const widgetIds = widgetDefinitions.map(({ id }) => id)
 
@@ -8,30 +15,68 @@ const context: WidgetContext = {
   weekStart: 1,
   birthDate: new Date(1990, 0, 1),
   lifespanYears: 85,
+  quoteTag: 'quotes',
 }
 
 const allVisible = () => true
 
+/** Depth-first text of a node tree, so assertions read like the rendered widget. */
+function texts(node: WidgetNode): string[] {
+  if (!node.children) return node.text === undefined ? [] : [node.text]
+  return node.children.flatMap(texts)
+}
+
+function nodeById(views: { id: string; node: WidgetNode }[], id: string) {
+  const view = views.find((candidate) => candidate.id === id)
+  if (!view) throw new Error(`no ${id} widget was rendered`)
+  return view.node
+}
+
+function find(
+  node: WidgetNode,
+  predicate: (candidate: WidgetNode) => boolean,
+): WidgetNode | null {
+  if (predicate(node)) return node
+  for (const child of node.children ?? []) {
+    const hit = find(child, predicate)
+    if (hit) return hit
+  }
+  return null
+}
+
+function collect(
+  node: WidgetNode,
+  predicate: (candidate: WidgetNode) => boolean,
+): WidgetNode[] {
+  const found = predicate(node) ? [node] : []
+  for (const child of node.children ?? []) found.push(...collect(child, predicate))
+  return found
+}
+
 describe('widget registry', () => {
-  it('exposes exactly the phase 1 widgets, with no calendar or quote', () => {
-    expect(widgetIds).toEqual(['day', 'week', 'year', 'life'])
+  it('lists the four progress widgets plus the calendar and the quote', () => {
+    expect(widgetIds).toEqual(['day', 'week', 'year', 'life', 'calendar', 'quote'])
   })
 
   it('gives every widget a unique id', () => {
     expect(new Set(widgetIds).size).toBe(widgetDefinitions.length)
   })
+
+  it('keeps the time-progress widgets free of host data', () => {
+    for (const id of ['day', 'week', 'year', 'life']) {
+      const definition = widgetDefinitions.find((candidate) => candidate.id === id)
+      expect(definition?.request?.(context) ?? null).toBeNull()
+    }
+  })
 })
 
-describe('buildWidgetViews', () => {
-  it('renders a percentage and a bar width for each visible widget', () => {
-    const views = buildWidgetViews(context, allVisible)
-    expect(views.map((view) => view.id)).toEqual(['day', 'week', 'year', 'life'])
+describe('progress widgets', () => {
+  it('renders a percentage, a bar width and a detail line', () => {
+    const day = nodeById(buildWidgetViews(context, allVisible), 'day')
+    expect(texts(day)).toEqual(['Day', '50.0%', '12h left'])
 
-    const day = views[0]
-    expect(day.label).toBe('Day')
-    expect(day.percentText).toBe('50.0%')
-    expect(day.barWidth).toBe('50.000%')
-    expect(day.detail).toBe('12h left')
+    const bar = find(day, (node) => node.class === 'lsdb-widget__bar')
+    expect(bar?.style).toEqual({ width: '50.000%' })
   })
 
   it('honours the visibility predicate and keeps registry order', () => {
@@ -44,52 +89,190 @@ describe('buildWidgetViews', () => {
   })
 
   it('uses the configured week start', () => {
-    const monday = buildWidgetViews({ ...context, weekStart: 1 }, allVisible)[1]
-    const sunday = buildWidgetViews({ ...context, weekStart: 0 }, allVisible)[1]
-    expect(monday.percentText).not.toBe(sunday.percentText)
-    expect(monday.detail).toBe('3d left')
-    expect(sunday.detail).toBe('2d left')
+    const detail = (weekStart: 0 | 1) =>
+      texts(nodeById(buildWidgetViews({ ...context, weekStart }, allVisible), 'week'))
+    // Friday noon is 4.5 of 7 days into a Monday week, 5.5 into a Sunday one.
+    expect(detail(1)).toEqual(['Week', '64.3%', '3d left'])
+    expect(detail(0)).toEqual(['Week', '78.6%', '2d left'])
   })
 
   it('marks the life widget unavailable without a birth date', () => {
-    const life = buildWidgetViews({ ...context, birthDate: null }, allVisible)[3]
-    expect(life.fraction).toBeNull()
-    expect(life.percentText).toBe('--%')
-    expect(life.barWidth).toBe('0%')
-    expect(life.detail).toBe('set a birth date')
-  })
-
-  it('shows 0% for a birth date in the future', () => {
-    const life = buildWidgetViews(
-      { ...context, birthDate: new Date(2030, 0, 1) },
-      allVisible,
-    )[3]
-    expect(life.percentText).toBe('0.0%')
-    expect(life.barWidth).toBe('0.000%')
-  })
-
-  it('caps an exceeded lifespan at 100% and says so', () => {
-    const life = buildWidgetViews(
-      { ...context, birthDate: new Date(1900, 0, 1) },
-      allVisible,
-    )[3]
-    expect(life.percentText).toBe('100.0%')
-    expect(life.barWidth).toBe('100.000%')
-    expect(life.detail).toBe('85y reached')
+    const life = nodeById(
+      buildWidgetViews({ ...context, birthDate: null }, allVisible),
+      'life',
+    )
+    expect(texts(life)).toEqual(['Life', '--%', 'set a birth date'])
+    expect(find(life, (node) => node.class === 'lsdb-widget__bar')?.style).toEqual({
+      width: '0%',
+    })
   })
 
   it('reports the remaining years of a normal lifespan', () => {
-    const life = buildWidgetViews(context, allVisible)[3]
-    expect(life.percentText).toBe('41.8%')
-    expect(life.detail).toBe('49.4y left')
+    const life = nodeById(buildWidgetViews(context, allVisible), 'life')
+    expect(texts(life)).toEqual(['Life', '41.8%', '49.4y left'])
+  })
+
+  it('caps an exceeded lifespan at 100% and says so', () => {
+    const life = nodeById(
+      buildWidgetViews({ ...context, birthDate: new Date(1900, 0, 1) }, allVisible),
+      'life',
+    )
+    expect(texts(life)).toEqual(['Life', '100.0%', '85y reached'])
   })
 
   it('is 100% on the last day of a leap-year lifespan boundary', () => {
     // Born 29 February 2000 with an 85 year lifespan ends 1 March 2085.
-    const reached = buildWidgetViews(
-      { ...context, now: new Date(2085, 2, 1), birthDate: new Date(2000, 1, 29) },
-      allVisible,
-    )[3]
-    expect(reached.percentText).toBe('100.0%')
+    const life = nodeById(
+      buildWidgetViews(
+        { ...context, now: new Date(2085, 2, 1), birthDate: new Date(2000, 1, 29) },
+        allVisible,
+      ),
+      'life',
+    )
+    expect(texts(life)).toContain('100.0%')
+  })
+})
+
+describe('calendar widget', () => {
+  const calendarNode = (data: unknown, overrides: Partial<WidgetContext> = {}) =>
+    nodeById(
+      buildWidgetViews({ ...context, ...overrides }, allVisible, () => data),
+      'calendar',
+    )
+
+  it('asks the host for the visible month only', () => {
+    const requests = widgetDataRequests(context, allVisible)
+    const calendar = requests.find((entry) => entry.id === 'calendar')
+    expect(calendar?.request.key).toBe('journal-content:2025-7')
+
+    const host = {
+      journalDaysWithContent: vi.fn(() => Promise.resolve([])),
+      taggedPageTexts: vi.fn(() => Promise.resolve([])),
+    } satisfies WidgetHost
+    void calendar?.request.load(host)
+    expect(host.journalDaysWithContent).toHaveBeenCalledWith(20250701, 20250731)
+  })
+
+  it('re-keys its data when the month changes, but not on a new day', () => {
+    const keyAt = (now: Date) =>
+      widgetDataRequests({ ...context, now }, allVisible).find(
+        (entry) => entry.id === 'calendar',
+      )?.request.key
+    expect(keyAt(new Date(2025, 6, 26))).toBe(keyAt(context.now))
+    expect(keyAt(new Date(2025, 7, 1))).not.toBe(keyAt(context.now))
+  })
+
+  it('titles itself with the month and renders weekday headers first', () => {
+    const node = calendarNode([])
+    expect(texts(node)[0]).toBe('July 2025')
+    expect(
+      collect(node, (candidate) => candidate.class === 'lsdb-calendar__weekday').map(
+        (candidate) => candidate.text,
+      ),
+    ).toEqual(['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'])
+  })
+
+  it('gives every day an open action for its own journal day', () => {
+    const days = collect(
+      calendarNode([]),
+      (candidate) => candidate.class === 'lsdb-calendar__day',
+    )
+    expect(days).toHaveLength(31)
+    expect(days[0].action).toEqual({ kind: 'openJournalDay', day: 20250701 })
+    expect(days[30].action).toEqual({ kind: 'openJournalDay', day: 20250731 })
+    // A date with no journal page is still clickable.
+    expect(days.every((day) => day.action !== undefined)).toBe(true)
+  })
+
+  it('marks only the days the host reported, and today', () => {
+    const node = calendarNode([20250703, 20250725])
+    const marked = collect(
+      node,
+      (candidate) => candidate.data?.content === 'true',
+    ).map((candidate) => candidate.text)
+    expect(marked).toEqual(['3', '25'])
+
+    const today = collect(node, (candidate) => candidate.data?.today === 'true')
+    expect(today.map((candidate) => candidate.text)).toEqual(['25'])
+  })
+
+  it('renders an unmarked month while the data is still loading or broken', () => {
+    for (const data of [undefined, null, 'nonsense', { days: [1] }]) {
+      const node = calendarNode(data)
+      expect(
+        collect(node, (candidate) => candidate.data?.content === 'true'),
+      ).toEqual([])
+      expect(
+        collect(node, (candidate) => candidate.class === 'lsdb-calendar__day'),
+      ).toHaveLength(31)
+    }
+  })
+
+  it('tolerates day numbers that arrive as strings', () => {
+    const node = calendarNode(['20250703', 'nope', null])
+    expect(
+      collect(node, (candidate) => candidate.data?.content === 'true').map(
+        (candidate) => candidate.text,
+      ),
+    ).toEqual(['3'])
+  })
+})
+
+describe('quote widget', () => {
+  const quoteNode = (data: unknown, overrides: Partial<WidgetContext> = {}) =>
+    buildWidgetViews({ ...context, ...overrides }, allVisible, () => data).find(
+      (view) => view.id === 'quote',
+    )?.node
+
+  it('asks the host for the configured tag', () => {
+    const request = widgetDataRequests(context, allVisible).find(
+      (entry) => entry.id === 'quote',
+    )?.request
+    expect(request?.key).toBe('tagged-texts:quotes')
+
+    const host = {
+      journalDaysWithContent: vi.fn(() => Promise.resolve([])),
+      taggedPageTexts: vi.fn(() => Promise.resolve([])),
+    } satisfies WidgetHost
+    void request?.load(host)
+    expect(host.taggedPageTexts).toHaveBeenCalledWith('quotes')
+  })
+
+  it('asks for nothing when the tag setting is empty', () => {
+    expect(
+      widgetDataRequests({ ...context, quoteTag: '' }, allVisible).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['calendar'])
+  })
+
+  it('renders one of the collected quotes', () => {
+    const node = quoteNode(['first quote', 'second quote'])
+    expect(texts(node as WidgetNode)).toHaveLength(1)
+    expect(['first quote', 'second quote']).toContain(texts(node as WidgetNode)[0])
+  })
+
+  it('shows the same quote all day and a different one on another day', () => {
+    const pool = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+    const at = (now: Date) => texts(quoteNode(pool, { now }) as WidgetNode)[0]
+    expect(at(new Date(2025, 6, 25, 1))).toBe(at(new Date(2025, 6, 25, 22)))
+
+    const week = Array.from({ length: 7 }, (_x, offset) =>
+      at(new Date(2025, 6, 20 + offset)),
+    )
+    expect(new Set(week).size).toBeGreaterThan(1)
+  })
+
+  it('stays out of the banner when the source is empty, missing or broken', () => {
+    for (const data of [undefined, null, [], ['', '  '], 'nonsense']) {
+      expect(quoteNode(data)).toBeUndefined()
+    }
+  })
+
+  it('bounds a very long quote', () => {
+    const node = quoteNode(['word '.repeat(400)])
+    const rendered = texts(node as WidgetNode)[0]
+    expect(rendered.length).toBeLessThan(260)
+    expect(rendered.endsWith('…')).toBe(true)
   })
 })

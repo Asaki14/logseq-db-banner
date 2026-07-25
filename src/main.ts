@@ -7,35 +7,44 @@ import {
   probeWallpaper,
   removeBanner,
   renderWidgets,
+  setWidgetActionHandler,
   type BannerAppearance,
 } from './banner'
+import { createAsyncCache, type AsyncCache } from './cache'
+import { openJournalDay, widgetHost } from './host'
 import { shouldMountBanner, toHostView, type HostView } from './journal'
 import type { WeekStart } from './progress'
 import { createRefresher } from './refresh'
 import {
   DEFAULT_BANNER_HEIGHT,
   DEFAULT_LIFESPAN_YEARS,
+  DEFAULT_QUOTE_TAG,
   DEFAULT_WALLPAPER_POSITION,
   parseBirthDate,
-  parseBoolean,
   parseCssLength,
   parseLifespanYears,
+  parseQuoteTag,
   parseWallpaperFit,
   parseWallpaperPosition,
   parseWeekStart,
   resolveWallpaperSource,
+  resolveWidgetVisibility,
+  settingsMigration,
   toAssetsUrl,
+  widgetVisibilityKey,
   type WallpaperSource,
 } from './settings'
 import { bannerStyles } from './styles'
-import { buildWidgetViews, widgetDefinitions } from './widgets'
+import {
+  buildWidgetViews,
+  widgetDataRequests,
+  widgetDefinitions,
+  type WidgetContext,
+} from './widgets'
 
 const TICK_INTERVAL_MS = 1000
 
-/** Visibility setting key for a widget id, e.g. `day` -> `showDayProgress`. */
-function visibilityKey(widgetId: string): string {
-  return `show${widgetId[0].toUpperCase()}${widgetId.slice(1)}Progress`
-}
+const widgetIds = widgetDefinitions.map(({ id }) => id)
 
 const settingsSchema: SettingSchemaDesc[] = [
   {
@@ -106,13 +115,36 @@ const settingsSchema: SettingSchemaDesc[] = [
     enumChoices: ['monday', 'sunday', 'saturday'],
     default: 'monday',
     title: 'Week starts on / 一周起始日',
-    description: 'Boundary used by the week-progress widget. / 周进度组件的分界。',
+    description:
+      'Boundary used by the week-progress widget, and the first column of the calendar. / 周进度组件的分界，同时决定日历的首列。',
+  },
+  {
+    key: 'quoteHeading',
+    title: '💬 Quote / 每日一言',
+    description: '',
+    type: 'heading',
+    default: null,
+  },
+  {
+    key: 'quoteTag',
+    type: 'string',
+    default: DEFAULT_QUOTE_TAG,
+    title: 'Quote source tag / 语录来源标签',
+    description:
+      'Top-level blocks of every page carrying this tag become the quote pool; one is picked per day. Leave empty to turn the widget off. / 携带该标签的所有页面的顶层块组成语录池，每天挑选一条；留空则关闭该组件。',
+  },
+  {
+    key: 'widgetsHeading',
+    title: '🧩 Widgets / 组件显示',
+    description: '',
+    type: 'heading',
+    default: null,
   },
   ...widgetDefinitions.map<SettingSchemaDesc>((definition) => ({
-    key: visibilityKey(definition.id),
+    key: widgetVisibilityKey(definition.id),
     type: 'boolean',
     default: true,
-    title: `Show ${definition.label.toLowerCase()} progress / 显示${definition.label}进度`,
+    title: `Show ${definition.label.toLowerCase()} widget / 显示${definition.label}组件`,
     description: '',
   })),
 ]
@@ -125,16 +157,14 @@ interface BannerConfig {
   birthDate: Date | null
   lifespanYears: number
   weekStart: WeekStart
+  quoteTag: string
   visibleWidgets: Set<string>
 }
 
-function readConfig(): BannerConfig {
-  const settings = (logseq.settings ?? {}) as Record<string, unknown>
-  const visibleWidgets = new Set<string>()
-  for (const definition of widgetDefinitions) {
-    if (parseBoolean(settings[visibilityKey(definition.id)])) {
-      visibleWidgets.add(definition.id)
-    }
+function readConfig(overrides: Record<string, unknown> = {}): BannerConfig {
+  const settings = {
+    ...((logseq.settings ?? {}) as Record<string, unknown>),
+    ...overrides,
   }
 
   return {
@@ -147,8 +177,29 @@ function readConfig(): BannerConfig {
     birthDate: parseBirthDate(settings.birthDate),
     lifespanYears: parseLifespanYears(settings.lifespanYears),
     weekStart: parseWeekStart(settings.weekStart),
-    visibleWidgets,
+    quoteTag: parseQuoteTag(settings.quoteTag),
+    visibleWidgets: resolveWidgetVisibility(settings, widgetIds),
   }
+}
+
+/**
+ * Carry a phase 1 `show<Id>Progress` choice over to `show<Id>Widget` once, so a
+ * saved configuration survives the rename. The legacy keys are left in place:
+ * they cost nothing, and removing them would lose the choice for anyone who rolls
+ * back to an older build.
+ *
+ * Returns the patch, because `logseq.settings` does not yet contain it when
+ * `updateSettings` resolves, and a plugin's own write raises no settings-changed
+ * event — so this run's config has to be built from the patch directly.
+ */
+async function migrateSettings(): Promise<Record<string, unknown>> {
+  const settings = (logseq.settings ?? {}) as Record<string, unknown>
+  const patch = settingsMigration(settings, widgetIds)
+  if (Object.keys(patch).length === 0) return {}
+
+  console.info('[db-banner] Migrating settings', patch)
+  await logseq.updateSettings(patch)
+  return patch
 }
 
 /**
@@ -241,6 +292,37 @@ async function refreshAppearance(banner: HTMLElement): Promise<void> {
   }
 }
 
+/**
+ * One cache per widget id. A widget's data is loaded at most once per cache key
+ * and TTL, so the per-second tick renders from memory instead of re-querying the
+ * graph; the caches are dropped on a route change and on a settings change, the
+ * two moments when the answer can have changed without a key change.
+ */
+const widgetDataCaches = new Map<string, AsyncCache>()
+
+function widgetDataCache(id: string): AsyncCache {
+  const existing = widgetDataCaches.get(id)
+  if (existing) return existing
+
+  const cache = createAsyncCache()
+  widgetDataCaches.set(id, cache)
+  return cache
+}
+
+function invalidateWidgetData(): void {
+  for (const cache of widgetDataCaches.values()) cache.invalidate()
+}
+
+function widgetContext(): WidgetContext {
+  return {
+    now: new Date(),
+    weekStart: config.weekStart,
+    birthDate: config.birthDate,
+    lifespanYears: config.lifespanYears,
+    quoteTag: config.quoteTag,
+  }
+}
+
 function tick(): void {
   // Re-asked every tick so a missed route event, or a route event that fired
   // before the page state settled, self-heals within a second.
@@ -258,16 +340,19 @@ function tick(): void {
     void refreshAppearance(banner)
   }
 
-  const views = buildWidgetViews(
-    {
-      now: new Date(),
-      weekStart: config.weekStart,
-      birthDate: config.birthDate,
-      lifespanYears: config.lifespanYears,
-    },
-    (id) => config.visibleWidgets.has(id),
-  )
-  renderWidgets(banner, views)
+  const context = widgetContext()
+  const isVisible = (id: string) => config.visibleWidgets.has(id)
+
+  // Render from whatever each cache already holds, and let a load that is due
+  // land in a later tick rather than blocking this one.
+  const data = new Map<string, unknown>()
+  for (const { id, request } of widgetDataRequests(context, isVisible)) {
+    const cache = widgetDataCache(id)
+    data.set(id, cache.peek(request.key))
+    void cache.ensure(request.key, request.ttlMs, () => request.load(widgetHost))
+  }
+
+  renderWidgets(banner, buildWidgetViews(context, isVisible, (id) => data.get(id)))
 }
 
 async function main(): Promise<void> {
@@ -279,7 +364,18 @@ async function main(): Promise<void> {
     return
   }
 
+  config = readConfig(await migrateSettings())
+
   logseq.provideStyle(bannerStyles)
+  setWidgetActionHandler((action) => {
+    // The day the click opens may be the one the calendar is about to mark, so
+    // the journal reads are dropped rather than waiting out their TTL.
+    invalidateWidgetData()
+    void openJournalDay(action.day)
+  })
+  // A reload leaves the previous instance's banner in the host document; start
+  // from a clean one rather than adopting DOM this instance never built.
+  removeBanner()
   await mountDecision.refresh()
   tick()
   const timer = window.setInterval(tick, TICK_INTERVAL_MS)
@@ -287,6 +383,7 @@ async function main(): Promise<void> {
   const removeSettingsListener = logseq.onSettingsChanged(() => {
     config = readConfig()
     appliedAppearanceKey = ''
+    invalidateWidgetData()
     tick()
   })
 
@@ -295,6 +392,8 @@ async function main(): Promise<void> {
   // here avoids a visible one-second gap either way. A read that a tick started
   // before this event may predate the new route, hence `refreshAfterCurrent`.
   logseq.App.onRouteChanged(() => {
+    // Journal content may have been edited on the page being left.
+    invalidateWidgetData()
     void mountDecision.refreshAfterCurrent().then(tick)
   })
 
