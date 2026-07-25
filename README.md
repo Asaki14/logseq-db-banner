@@ -8,13 +8,13 @@ and a quote on the right.
 
 ## 中文
 
-一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，之上并排放两张半透明毛玻璃卡片——左边是当月日历，右边自上而下是当天／本周／当年／人生四条进度条，底部是一言。
+一个仅适用于 **Logseq DB graph** 的横幅插件。在日志页面内容区顶部渲染一条横幅：背景是本机壁纸，之上左右两端各放一张半透明毛玻璃卡片——左端是当月日历，右端自上而下是当天／本周／当年／人生四条进度条，底部是一言。
 
 ### 功能
 
 - **仅日志页面**：横幅只出现在日志视图——日志主页（多天滚动流）与单个日志页面。普通页面、All pages、设置、图谱视角、白板、插件页面都不会渲染横幅；离开日志视图时横幅会被移除，返回时重新渲染。
 - **本机壁纸**：支持本机绝对路径、`https://` 链接，或相对于图谱 `assets` 目录的路径。可设置填充方式与位置；图片缺失或无法读取时回退为渐变背景，组件仍然可读。
-- **两张卡片的版式**：日历卡在左、进度卡在右，两张卡片各自只占内容所需的宽度（不再拉满整条横幅），因此卡片周围与之间都露出壁纸；**两张卡片等高**——整行的高度取内容较高的那张，另一张拉伸对齐，实测两者高度差为 0px，不是"看起来差不多"。进度卡里的内容按这个高度上下均分，因此隐藏一言时卡内也不会在底部留下一块空白。卡片共用一套字号、间距、圆角与强调色（强调色同时用于"今天"和进度条填充）。遮罩很淡（主题背景色 32%）＋ `blur(4px)` 毛玻璃，壁纸依然透过卡片看得清；卡片同时靠**边缘**成形——一道墨色细线，配上一圈 1px 主题背景色内描边与一层柔和外发光，无论壁纸明暗都能看清卡片轮廓。文字**不再使用字形光晕**（此前是每个字周围叠四层 `text-shadow` 的环形光晕，看上去发光、读起来费劲），改为遮罩本身承担可读性，再加一道朝下的柔和投影（`0 1px 2px`，主题背景色 62%）。卡片配色取自 Logseq 主题变量（`--ls-primary-background-color`、`--ls-primary-text-color`、`--lx-accent-11`），因此浅色与深色主题都自动跟随。
+- **两张卡片的版式**：日历卡贴横幅左端、进度卡贴右端（内缩量就是横幅自身的 14px 内边距，两张卡都不会紧贴边框），两张卡片各自只占内容所需的宽度（不再拉满整条横幅，被推开的只是间距，卡片本身不变宽），因此卡片周围、尤其是两者之间露出成片壁纸——实测 932px 内容列上，日历卡占 46–266px、进度卡占 700–950px，中间空出 434px 壁纸。只剩一张卡片时（关掉日历，或进度卡上的组件全部关闭）它停在左端；**两张卡片等高**——整行的高度取内容较高的那张，另一张拉伸对齐，实测两者高度差为 0px，不是"看起来差不多"。进度卡里的内容按这个高度上下均分，因此隐藏一言时卡内也不会在底部留下一块空白。卡片共用一套字号、间距、圆角与强调色（强调色同时用于"今天"和进度条填充）。遮罩很淡（主题背景色 32%）＋ `blur(4px)` 毛玻璃，壁纸依然透过卡片看得清；卡片同时靠**边缘**成形——一道墨色细线，配上一圈 1px 主题背景色内描边与一层柔和外发光，无论壁纸明暗都能看清卡片轮廓。文字**不再使用字形光晕**（此前是每个字周围叠四层 `text-shadow` 的环形光晕，看上去发光、读起来费劲），改为遮罩本身承担可读性，再加一道朝下的柔和投影（`0 1px 2px`，主题背景色 62%）。卡片配色取自 Logseq 主题变量（`--ls-primary-background-color`、`--ls-primary-text-color`、`--lx-accent-11`），因此浅色与深色主题都自动跟随。
 - **时间进度组件**：当天、本周、当年、人生四条进度条，各自显示标签、进度条与**三位小数**的百分比（如 `41.286%`）。不再显示"剩余多少小时／天／年"。百分比使用等宽数字（tabular figures）并占固定宽度，末位每约 0.86 秒变化一次也不会让整行左右抖动。每秒自动刷新，无需手动刷新页面。
 - **人生进度**：由出生日期与预期寿命（默认 85 年）计算。出生日期在未来时显示 0%，寿命已超出时显示 100%。
 - **当月日历**：今天高亮；已经写过内容的日期带一个小圆点；点击任意日期都会跳转到该天的日志页面——无论那天已有内容、页面存在但是空的、还是页面根本不存在。首列跟随 `Week starts on` 设置。写入一个块之后，圆点约 1 秒内出现（监听 `logseq.DB.onChanged`）。
@@ -110,9 +110,13 @@ day on the right.
 - **Local wallpaper** from an absolute path on your machine, an `https://` URL, or a
   path relative to the graph's `assets` folder. Fit and position are configurable, and
   a missing or unreadable image falls back to a gradient while the widgets stay readable.
-- **Two cards, one surface, equal height.** The calendar sits on the left, the progress
-  bars stack on the right, and each card is only as wide as its own content — they no longer
-  stretch across the banner, so bare wallpaper shows around and between them. Their heights
+- **Two cards, one surface, equal height, held apart.** The calendar sits against the
+  banner's left inset, the progress bars against its right — the inset is the banner's own
+  14px padding, so neither card is flush against the border. Each card is only as wide as
+  its own content, so pushing them apart widens the space between them rather than the
+  cards: measured on a 932px content column, the calendar occupies 46–266px and the
+  progress card 700–950px, with 434px of bare wallpaper between them. A lone card (calendar
+  hidden, or every progress widget off) sits at the left end. Their heights
   are **equal, not merely similar**: the row takes the height of the taller card's content
   and the other stretches to it (measured live: a 0px difference), and the progress card
   spreads its content over that height, so hiding the quote does not leave a pool of empty

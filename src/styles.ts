@@ -6,8 +6,9 @@
  * `#lsdb-banner`.
  *
  * The banner is one surface, not a row of widgets: two frosted cards of equal
- * height — the month grid on the left, the progress bars and the quote on the
- * right — sharing one type scale, one corner radius, one gap and one accent.
+ * height held apart at its two edges — the month grid at the left, the progress
+ * bars and the quote at the right, wallpaper between them — sharing one type
+ * scale, one corner radius, one gap and one accent.
  * Colours come from the host's own theme variables (`--ls-*`, `--lx-accent-11`),
  * blended with `color-mix`, so light and dark themes are followed without a theme
  * selector and without hard-coded palettes; the fallbacks only apply if a theme
@@ -100,16 +101,23 @@ export const bannerStyles = `
 /* Cards ---------------------------------------------------------------- */
 
 /* The row sits at the top and is only as tall as its own content, so the wallpaper
-   shows below it and to its right instead of being covered edge to edge. Inside
-   the row the cards stretch, which is what makes their heights equal rather than
-   merely similar: the row is as tall as the taller card's content and both cards
-   take that height. */
+   shows below it and between the cards instead of being covered edge to edge.
+   Inside the row the cards stretch, which is what makes their heights equal rather
+   than merely similar: the row is as tall as the taller card's content and both
+   cards take that height.
+   space-between drives the cards to the row's two ends — the banner's own padding
+   is the inset, so neither is flush against the border — and because neither card
+   grows, all the spare room lands in the middle as wallpaper. The gap is then only
+   a floor for a column too narrow to hold both, where the row wraps; a lone card
+   (calendar hidden, or every panel widget off) sits at the left end, where the
+   calendar sits when there are two. */
 #lsdb-banner .lsdb-banner__widgets {
   position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
+  justify-content: space-between;
   gap: var(--lsdb-gap);
   min-height: 0;
 }
