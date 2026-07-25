@@ -3,7 +3,7 @@ import {
   escapeQueryString,
   journalContentQuery,
   journalPageQuery,
-  taggedPageTextsQuery,
+  taggedTextsQuery,
 } from './query'
 
 describe('escapeQueryString', () => {
@@ -14,7 +14,7 @@ describe('escapeQueryString', () => {
   })
 
   it('cannot be used to close the literal and append clauses', () => {
-    const query = taggedPageTextsQuery('x" ] [?p :block/name "y')
+    const query = taggedTextsQuery('x" ] [?p :block/name "y')
     expect(query).toContain('[?tag :block/name "x\\" ] [?p :block/name \\"y"]')
   })
 })
@@ -64,19 +64,36 @@ describe('journalPageQuery', () => {
   })
 })
 
-describe('taggedPageTextsQuery', () => {
+describe('taggedTextsQuery', () => {
   it('interpolates the tag name, which does not bind as an input', () => {
-    expect(taggedPageTextsQuery('quotes')).toContain(
+    expect(taggedTextsQuery('quotes')).toContain(
       '[?tag :block/name "quotes"]',
     )
-    expect(taggedPageTextsQuery('quotes')).not.toContain(':in')
+    expect(taggedTextsQuery('quotes')).not.toContain(':in')
   })
 
-  it('collects only top-level blocks of tagged pages', () => {
-    const query = taggedPageTextsQuery('quotes')
+  it('collects the blocks carrying the tag, at any depth', () => {
+    const query = taggedTextsQuery('quote')
+    expect(query).toContain('[?block :block/tags ?tag]')
+    // Blocks only: a page has no `:block/page`, so a tagged page cannot
+    // contribute its own title.
+    expect(query).toContain('[?block :block/page _]')
+  })
+
+  it('still collects the top-level blocks of tagged pages', () => {
+    const query = taggedTextsQuery('quotes')
     expect(query).toContain('[?page :block/tags ?tag]')
     // A top-level block's parent is the page itself.
     expect(query).toContain('[?block :block/parent ?page]')
+  })
+
+  it('unions the two shapes rather than choosing one', () => {
+    expect(taggedTextsQuery('quotes')).toContain('(or-join [?block ?tag]')
+  })
+
+  it('leaves out empty blocks and property values', () => {
+    const query = taggedTextsQuery('quotes')
+    expect(query).toContain('[(not= ?title "")]')
     expect(query).toContain(
       '(not [?block :logseq.property/created-from-property _])',
     )

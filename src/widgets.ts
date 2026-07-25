@@ -33,7 +33,7 @@ export interface WidgetContext {
   weekStart: WeekStart
   birthDate: Date | null
   lifespanYears: number
-  /** Tag whose pages hold the quotes. */
+  /** Tag whose blocks — or whose pages' top-level blocks — hold the quotes. */
   quoteTag: string
 }
 
@@ -44,8 +44,11 @@ export interface WidgetHost {
    * non-empty block.
    */
   journalDaysWithContent(from: number, to: number): Promise<number[]>
-  /** Top-level block texts of every page carrying `tag`. */
-  taggedPageTexts(tag: string): Promise<string[]>
+  /**
+   * Texts of the blocks carrying `tag`, plus the top-level blocks of every page
+   * carrying it — the two shapes a tag is worn in a DB graph.
+   */
+  taggedTexts(tag: string): Promise<string[]>
 }
 
 export interface WidgetDataRequest {
@@ -243,7 +246,7 @@ const quoteWidget: WidgetDefinition = {
     return {
       key: `tagged-texts:${quoteTag}`,
       ttlMs: QUOTE_TTL_MS,
-      load: (host) => host.taggedPageTexts(quoteTag),
+      load: (host) => host.taggedTexts(quoteTag),
     }
   },
   build({ now }, data) {

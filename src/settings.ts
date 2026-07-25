@@ -153,7 +153,7 @@ export function parseWallpaperPosition(
 }
 
 /**
- * The tag whose pages hold the quotes. Written the way users write tags —
+ * The tag the quotes belong to. Written the way users write tags —
  * `#quotes`, `[[quotes]]`, `Quotes` — and matched against `:block/name`, which
  * is the lowercased title. An empty setting means "no quote widget" rather than
  * a fallback to the default, so clearing the field switches the source off.

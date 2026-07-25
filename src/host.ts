@@ -10,7 +10,7 @@ import { fromJournalDay } from './progress'
 import {
   journalContentQuery,
   journalPageQuery,
-  taggedPageTextsQuery,
+  taggedTextsQuery,
 } from './query'
 import type { WidgetHost } from './widgets'
 
@@ -22,9 +22,9 @@ export const widgetHost: WidgetHost = {
     return readNumbers(rows)
   },
 
-  async taggedPageTexts(tag) {
+  async taggedTexts(tag) {
     const rows = await logseq.DB.datascriptQuery<unknown>(
-      taggedPageTextsQuery(tag),
+      taggedTextsQuery(tag),
     )
     return readStrings(rows)
   },

@@ -175,7 +175,7 @@ describe('calendar widget', () => {
 
     const host = {
       journalDaysWithContent: vi.fn(() => Promise.resolve([])),
-      taggedPageTexts: vi.fn(() => Promise.resolve([])),
+      taggedTexts: vi.fn(() => Promise.resolve([])),
     } satisfies WidgetHost
     void calendar?.request.load(host)
     expect(host.journalDaysWithContent).toHaveBeenCalledWith(20250701, 20250731)
@@ -260,10 +260,10 @@ describe('quote widget', () => {
 
     const host = {
       journalDaysWithContent: vi.fn(() => Promise.resolve([])),
-      taggedPageTexts: vi.fn(() => Promise.resolve([])),
+      taggedTexts: vi.fn(() => Promise.resolve([])),
     } satisfies WidgetHost
     void request?.load(host)
-    expect(host.taggedPageTexts).toHaveBeenCalledWith('quotes')
+    expect(host.taggedTexts).toHaveBeenCalledWith('quotes')
   })
 
   it('asks for nothing when the tag setting is empty', () => {
