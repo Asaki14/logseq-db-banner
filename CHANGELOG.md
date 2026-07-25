@@ -122,6 +122,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   equal height (223.57px each), and the column's width (932px) and the absence of
   overflow (`scrollWidth === clientWidth`) are unchanged. A lone card — calendar
   hidden, or every progress widget off — sits at the left end.
+- The two cards are also the same width, and it is the narrower one's: the
+  progress-and-quote card takes the month grid's width rather than the calendar
+  being widened to meet it, so less wallpaper is covered. Both are 220px where the
+  progress card used to be 250px, measured live in a 932px content column, and the
+  cards now cover 37.7% of the banner's area. Inside the narrower card nothing
+  wraps or overflows: the label no longer stretches, so a progress row's label and
+  its "set a birth date" hint stay on one line, and the fixed-width tabular
+  percentage keeps its position as digits turn over. The equal height (223.57px),
+  the edge split, the quote's three-line clamp, the column's width and the absence
+  of overflow are unchanged.
 - The type is plainer and no longer glows. The per-glyph halo — four stacked
   `text-shadow` rings in the theme's background colour — is replaced by one soft
   shadow under the glyph (`0 1px 2px` at 62% of that colour), and the legibility it
