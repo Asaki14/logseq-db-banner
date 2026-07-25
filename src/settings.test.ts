@@ -22,6 +22,21 @@ import {
 
 const WIDGET_IDS = ['day', 'week', 'year', 'life', 'calendar', 'quote']
 
+/** The path from the Windows bug report, verbatim. */
+const WINDOWS_PATH = 'D:\\桌面\\20260510第一赛段冠军!.jpg'
+
+/**
+ * The filesystem path Logseq's shell derives from an `assets://` URL, in the two
+ * steps observed live against 2.0.1: Chromium's standard-scheme parser folds the
+ * leading slashes into the host, then `setup-interceptor!`
+ * (`electron/src/electron/core.cljs`) puts host and path back together minus the
+ * scheme, restores the drive colon and decodes.
+ */
+function resolveLikeLogseq(url: string): string {
+  const hostAndPath = url.replace(/^assets:\/+/, '')
+  return decodeURIComponent(hostAndPath.replace('/logseq__colon/', ':/'))
+}
+
 describe('resolveWallpaperSource', () => {
   it('treats blank and disabling values as unset', () => {
     for (const value of ['', '   ', 'false', 'none', 'off', undefined, 42]) {
@@ -91,18 +106,33 @@ describe('toAssetsUrl', () => {
     )
   })
 
-  it('normalises a Windows path and encodes the drive colon', () => {
-    // Logseq decodes the path again, so `%3A` arrives as `/C:/...`, the shape its
-    // Electron handler matches for Windows drives.
+  it('normalises a Windows path and carries the drive colon as a token', () => {
+    // The drive letter ends up in the URL's host, where neither `%3A` nor a
+    // literal colon survives, so it goes over as Logseq's own `logseq__colon`.
     expect(toAssetsUrl('C:\\Users\\me\\wall.jpg')).toBe(
-      'assets:///C%3A/Users/me/wall.jpg',
+      'assets:///C/logseq__colon/Users/me/wall.jpg',
     )
+  })
+
+  it('keeps a Windows path free of an encoded colon', () => {
+    const url = toAssetsUrl(WINDOWS_PATH)
+    expect(url).toBe(
+      'assets:///D/logseq__colon/%E6%A1%8C%E9%9D%A2/' +
+        '20260510%E7%AC%AC%E4%B8%80%E8%B5%9B%E6%AE%B5%E5%86%A0%E5%86%9B!.jpg',
+    )
+    expect(url).not.toMatch(/%3A/i)
   })
 
   it('round-trips through decodeURIComponent, as the host handler does', () => {
     const path = '/Users/me/My Pictures/wall #1.jpg'
     const decoded = decodeURIComponent(toAssetsUrl(path).replace('assets://', ''))
     expect(decoded).toBe(path)
+  })
+
+  it('round-trips a Windows drive, CJK segments and a `!` through the host', () => {
+    expect(resolveLikeLogseq(toAssetsUrl(WINDOWS_PATH))).toBe(
+      'D:/桌面/20260510第一赛段冠军!.jpg',
+    )
   })
 })
 

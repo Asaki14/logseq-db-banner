@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A Windows absolute path as the wallpaper source now displays. `assets:` is a
+  *standard* scheme, so Chromium folds the URL's leading slashes into its host and
+  the drive letter lands there; the encoded colon the plugin used to emit
+  (`assets:///D%3A/...`) makes the whole URL invalid, so no request was ever made
+  and the banner kept its gradient fallback. The drive now travels as Logseq's own
+  `logseq__colon` token (`assets:///D/logseq__colon/...`), which the shell's
+  `assets://` handler turns back into `D:/` before reading the file. POSIX paths are
+  unchanged.
+
 ### Changed
 
 - The README is split by language: `README.md` is English only, `README.zh-CN.md`

@@ -50,21 +50,37 @@ function stripWrappingQuotes(value: string): string {
 }
 
 /**
+ * Logseq's own stand-in for a Windows drive colon, written by
+ * `protect-windows-drive-in-assets-path` (`frontend/handler/assets.cljs`) and
+ * turned back into `:/` by `decode-protected-assets-schema-path` before the
+ * `assets://` handler reads the file.
+ */
+const DRIVE_COLON_TOKEN = 'logseq__colon'
+
+/**
  * Percent-encode a filesystem path for the `assets://` scheme. Logseq's Electron
  * handler strips `assets://` and `decodeURIComponent`s the remainder, so each
- * path segment is encoded individually — including the Windows drive colon,
- * which Chromium would otherwise mangle inside a standard-scheme URL.
+ * path segment is encoded individually.
+ *
+ * A Windows drive letter cannot be carried in the first segment, because
+ * `assets:` is registered as a *standard* scheme: Chromium folds every leading
+ * slash into the authority, so the drive lands in the host, where a percent-
+ * encoded colon makes the whole URL invalid (`new URL('assets:///D%3A/x')`
+ * throws, and no request is ever made) and a literal colon is read as a port
+ * separator and drops the drive letter. The drive is therefore written the way
+ * Logseq writes its own — `D` as the host, the colon as `/logseq__colon/` — so
+ * the handler reassembles `D:/...` from it.
  */
 export function toAssetsUrl(path: string): string {
   const normalized = path.replace(/\\/g, '/')
-  const absolute = WINDOWS_DRIVE_PATTERN.test(normalized)
-    ? `/${normalized}`
-    : normalized
-  const encoded = absolute
-    .split('/')
-    .map((segment) => encodeURIComponent(segment))
-    .join('/')
-  return `assets://${encoded}`
+  const encode = (segments: string[]): string =>
+    segments.map((segment) => encodeURIComponent(segment)).join('/')
+
+  if (WINDOWS_DRIVE_PATTERN.test(normalized)) {
+    const [drive, ...rest] = normalized.split('/')
+    return `assets:///${drive[0]}/${DRIVE_COLON_TOKEN}/${encode(rest)}`
+  }
+  return `assets://${encode(normalized.split('/'))}`
 }
 
 export function resolveWallpaperSource(value: unknown): WallpaperSource {
