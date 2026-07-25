@@ -106,6 +106,20 @@ describe('injected styles', () => {
   it('never restyles the host layout containers', () => {
     expect(bannerStyles).not.toMatch(/#main-content-container|cp__sidebar-main-content/)
   })
+
+  it('stretches the cards to one height instead of letting each keep its own', () => {
+    const row = bannerStyles.match(
+      /#lsdb-banner \.lsdb-banner__widgets \{([^}]*)\}/,
+    )?.[1]
+    expect(row).toMatch(/align-items:\s*stretch/)
+  })
+
+  it('draws one shadow under the type, not a halo ringing every glyph', () => {
+    const shadow = bannerStyles.match(/--lsdb-text-shadow:([^;]*);/)?.[1]
+    expect(shadow).toBeDefined()
+    // A `0 0` offset is a ring around the glyph, which is what glowed.
+    expect(shadow).not.toMatch(/\b0 0 \d/)
+  })
 })
 
 describe('widget rendering', () => {

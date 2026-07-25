@@ -5,21 +5,21 @@
  * `provideStyle` is global to the host document, so every rule stays scoped to
  * `#lsdb-banner`.
  *
- * The banner is one surface, not a row of widgets: two frosted cards — the month
- * grid on the left, the progress bars and the quote on the right — sharing one
- * type scale, one corner radius, one gap and one accent. Colours come from the
- * host's own theme variables (`--ls-*`, `--lx-accent-11`), blended with
- * `color-mix`, so light and dark themes are followed without a theme selector and
- * without hard-coded palettes; the fallbacks only apply if a theme drops a
- * variable.
+ * The banner is one surface, not a row of widgets: two frosted cards of equal
+ * height — the month grid on the left, the progress bars and the quote on the
+ * right — sharing one type scale, one corner radius, one gap and one accent.
+ * Colours come from the host's own theme variables (`--ls-*`, `--lx-accent-11`),
+ * blended with `color-mix`, so light and dark themes are followed without a theme
+ * selector and without hard-coded palettes; the fallbacks only apply if a theme
+ * drops a variable.
  *
- * The cards are meant to be seen *through*, so the scrim is barely there, the
- * cards are held together by their edge rather than their fill, and legibility
- * comes from a halo drawn in the theme's background colour behind every
- * glyph. That pairing is what makes one value work on any wallpaper: the theme
- * always pairs light ink with a dark background and vice versa, so the halo is
- * always the opposite of the text and dark ink stays readable over a night
- * photograph exactly as light ink stays readable over a bright one.
+ * The cards are still meant to be seen *through*, so the scrim stays light and
+ * the cards are held together by their edge as much as their fill. Legibility is
+ * paid for by the scrim plus one soft drop shadow — not by the omnidirectional
+ * per-glyph halo this used to stack, which made the type glow. The shadow is
+ * drawn in the theme's background colour, which is what makes a single value work
+ * on any wallpaper: the theme always pairs light ink with a dark background and
+ * vice versa, so the shadow is always the opposite of the text.
  */
 
 export const bannerStyles = `
@@ -27,26 +27,30 @@ export const bannerStyles = `
   --lsdb-gap: 12px;
   --lsdb-radius: 14px;
   --lsdb-accent: var(--lx-accent-11, #6aa9d8);
+  /* Enough of a scrim to carry plain type on its own — the wallpaper still reads
+     through it, but the ink no longer needs a halo to survive a busy photograph. */
   --lsdb-surface: color-mix(
     in srgb,
-    var(--ls-primary-background-color, #10131a) 7%,
+    var(--ls-primary-background-color, #10131a) 32%,
     transparent
   );
   --lsdb-ink: var(--ls-primary-text-color, #eceff4);
   --lsdb-hairline: color-mix(in srgb, var(--lsdb-ink) 26%, transparent);
-  /* The glyph halo, and the fill of anything that has to read as a surface. */
+  /* The background colour: the fill of anything that has to read as a surface,
+     and the colour the text shadow is drawn in. */
   --lsdb-halo: var(--ls-primary-background-color, #10131a);
-  /* The card edge, drawn the way the glyphs are: an ink hairline paired with a
-     background-coloured line just inside it, so the pair keeps a visible seam on
-     a wallpaper of any brightness without thickening into a frame. */
+  /* The card edge, drawn as an ink hairline paired with a background-coloured line
+     just inside it, so the pair keeps a visible seam on a wallpaper of any
+     brightness without thickening into a frame. */
   --lsdb-card-edge: color-mix(in srgb, var(--lsdb-halo) 42%, transparent);
-  /* The legibility device, in place of an opaque card: a tight ring stacked
-     twice — so it is effectively solid — is a scrim the size of the glyph, and a
-     wide soft ring lifts the whole line off a busy wallpaper. Between the glyphs
-     the card stays as transparent as its scrim. */
-  --lsdb-text-halo: 0 0 3px var(--lsdb-halo), 0 0 3px var(--lsdb-halo),
-    0 1px 4px var(--lsdb-halo),
-    0 0 10px color-mix(in srgb, var(--lsdb-halo) 65%, transparent);
+  /* One soft shadow under the glyph, not a ring around it: it separates the type
+     from whatever the scrim lets through without the glow an omnidirectional halo
+     gives every letter. */
+  --lsdb-text-shadow: 0 1px 2px color-mix(
+    in srgb,
+    var(--lsdb-halo) 62%,
+    transparent
+  );
 
   position: relative;
   width: 100%;
@@ -95,14 +99,17 @@ export const bannerStyles = `
 
 /* Cards ---------------------------------------------------------------- */
 
-/* Cards sit at the top and keep their own height, so the wallpaper shows below
-   them and to their right instead of being covered edge to edge. */
+/* The row sits at the top and is only as tall as its own content, so the wallpaper
+   shows below it and to its right instead of being covered edge to edge. Inside
+   the row the cards stretch, which is what makes their heights equal rather than
+   merely similar: the row is as tall as the taller card's content and both cards
+   take that height. */
 #lsdb-banner .lsdb-banner__widgets {
   position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: stretch;
   gap: var(--lsdb-gap);
   min-height: 0;
 }
@@ -120,15 +127,14 @@ export const bannerStyles = `
   box-sizing: border-box;
   border: 1px solid var(--lsdb-hairline);
   border-radius: var(--lsdb-radius);
-  /* Barely a scrim, barely a blur: what defines the card is its edge, not its
-     fill, so the wallpaper reads through nearly untouched. Legibility is the
-     glyph halo's job — see --lsdb-text-halo. */
+  /* A light scrim over a light blur: the wallpaper still reads through the card,
+     and between them they carry the type — see --lsdb-text-shadow. */
   background: var(--lsdb-surface);
-  backdrop-filter: blur(2px) saturate(112%);
-  -webkit-backdrop-filter: blur(2px) saturate(112%);
+  backdrop-filter: blur(4px) saturate(112%);
+  -webkit-backdrop-filter: blur(4px) saturate(112%);
   box-shadow: inset 0 0 0 1px var(--lsdb-card-edge),
     0 1px 6px color-mix(in srgb, var(--lsdb-halo) 22%, transparent);
-  text-shadow: var(--lsdb-text-halo);
+  text-shadow: var(--lsdb-text-shadow);
 }
 
 #lsdb-banner .lsdb-card:empty {
@@ -140,10 +146,14 @@ export const bannerStyles = `
   flex: 0 0 auto;
 }
 
+/* Stretched to the month grid's height, its content spread over that height: the
+   spare room goes between the bars and above the quote rather than pooling under
+   the last one, and it works the same when the quote is hidden. */
 #lsdb-banner .lsdb-card--panel {
   flex: 0 1 auto;
   width: clamp(190px, 34%, 250px);
   gap: 9px;
+  justify-content: space-between;
 }
 
 /* Widgets -------------------------------------------------------------- */
@@ -171,7 +181,7 @@ export const bannerStyles = `
 
 /* Only ever carries the "not configured" note; empty otherwise. */
 #lsdb-banner .lsdb-widget__hint {
-  opacity: 0.72;
+  opacity: 0.78;
   font-size: 11px;
 }
 
@@ -250,7 +260,7 @@ export const bannerStyles = `
 }
 
 #lsdb-banner .lsdb-calendar__weekday {
-  opacity: 0.72;
+  opacity: 0.78;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -269,7 +279,7 @@ export const bannerStyles = `
   cursor: pointer;
   /* Restated rather than inherited: the host stylesheet resets text-shadow on
      every button, and a direct rule beats what the card hands down. */
-  text-shadow: var(--lsdb-text-halo);
+  text-shadow: var(--lsdb-text-shadow);
 }
 
 #lsdb-banner .lsdb-calendar__day:hover {
@@ -313,18 +323,18 @@ export const bannerStyles = `
   border-top: 1px solid var(--lsdb-hairline);
 }
 
+/* Upright and full-strength rather than dimmed italic: the same words at the same
+   size read as a sentence instead of a caption. */
 #lsdb-banner .lsdb-quote__text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   /* Belt and braces: the clamp bounds the height in Chromium, the max-height
      bounds it anywhere else, and a single long word can never widen the card. */
-  max-height: 4.2em;
+  max-height: 4.5em;
   overflow: hidden;
   overflow-wrap: anywhere;
-  font-size: 11.5px;
-  line-height: 1.4;
-  font-style: italic;
-  opacity: 0.94;
+  font-size: 12px;
+  line-height: 1.45;
 }
 `
