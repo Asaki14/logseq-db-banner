@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The banner is laid out as two frosted-glass cards on the wallpaper: the month
   calendar on the left, the four progress bars stacked on the right with the quote
-  at their foot, equal height and aligned. They share one type scale, one spacing
+  at their foot. They share one type scale, one spacing
   rhythm, one corner radius and one accent — the colour that marks "today" is the
   colour that fills the bars. Card and text colours are blended from Logseq's own
   theme variables (`--ls-primary-background-color`, `--ls-primary-text-color`,
@@ -94,20 +94,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   What defines a card is its edge rather than its fill: the ink hairline is now
   paired with a 1px inset line in the theme's background colour and a 6px outer glow
   in the same colour, which replaces the old black drop shadow and keeps the seam
-  visible on a wallpaper of any brightness.
-  Legibility is carried by a glyph halo instead of by an opaque
-  panel: a stacked `text-shadow` in the theme's background colour, which is a scrim
-  the size of each glyph and leaves the space between glyphs transparent. Because
-  the theme always pairs light ink with a dark background and vice versa, the halo
-  is always the opposite of the text, so light ink stays readable over a bright
-  wallpaper and dark ink over a night photograph. Checked in both themes against
-  both a dark landscape and a bright high-frequency wallpaper.
+  visible on a wallpaper of any brightness. Checked in both themes against both a
+  dark landscape and a bright high-frequency wallpaper. (The glyph halo this first
+  shipped with is gone again — see the type entry below.)
 - The progress readout shows three decimals (`41.286%`, was `41.8%`), in tabular
   figures in a fixed-width field so the last digit — which turns over about once a
   second on the day bar — cannot shift the row sideways.
 - The progress widgets no longer show a remaining-time line. The bar, the label and
   the percentage stay; "12h left", "3d left" and "49.4y left" are gone, and the
   slot is reused only for the life bar's "set a birth date" hint.
+- The two cards are now genuinely equal height rather than merely close: the row
+  stretches its cards to the height of the taller one's content, and the progress
+  card spreads its content over that height so hiding the quote does not leave an
+  empty stretch of card below the last bar. Measured live in a 932px content
+  column: 198.9px against 219.66px before (a 20.76px mismatch), 223.57px against
+  223.57px after. The column's width and the absence of overflow are unchanged, and
+  the cards still cover only part of the banner — 40% of its area after, 38%
+  before. With the quote hidden, or its source empty, the row falls back to two
+  198.9px cards with no empty element left behind.
+- The type is plainer and no longer glows. The per-glyph halo — four stacked
+  `text-shadow` rings in the theme's background colour — is replaced by one soft
+  shadow under the glyph (`0 1px 2px` at 62% of that colour), and the legibility it
+  used to carry moves into the card: the scrim goes from 7% to 32% of the theme
+  background and the frost from `blur(2px)` to `blur(4px)`. The quote is set
+  upright at 12px/1.45 at full strength, where it was italic at 11.5px/1.4 and 94%
+  opacity; the muted weekday and hint labels go from 72% to 78%. The trade is
+  deliberate: the wallpaper is a little less crisp through a card than it was at 7%,
+  which is what buys comfortable text without putting an opaque panel back.
 
 ### Fixed
 
