@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-26
+
+### Fixed
+
+- The banner now renders when the plugin is **installed** — from the marketplace or
+  by unzipping a release into `~/.logseq/plugins/` — which it never did in 0.2.1.
+  Logseq reads `effect` from the *root* of `package.json`, not from the `logseq`
+  object, so the `"effect": false` declared there was never seen and an installed
+  plugin was served from `lsp://logseq.io`, cross-origin to the host page on
+  `lsp://logseq.com`. Every `window.parent.document` access then threw
+  `SecurityError`, the per-second tick swallowed it, and the user saw no banner and
+  no error. `"effect": true` at the root keeps the iframe same-origin; the dead
+  `logseq.effect` key is gone.
+- A slow-loading graph no longer switches the plugin off for the whole session.
+  `logseq.App.checkCurrentIsDbGraph()` answers `false` while the graph is still
+  loading, and that answer was treated as final — intermittently killing the banner
+  on a DB graph and showing a "DB graphs only" warning that was simply wrong. The
+  check is now repeated, on `logseq.App.onCurrentGraphChanged` and on an interval,
+  until a graph is actually loaded; the warning fires only for a real file graph.
+
+### Changed
+
+- The documented claim that `logseq.unsupportedGraphType: "file"` stops Logseq
+  enabling the plugin on a file graph is corrected in both READMEs: the field is
+  absent from Logseq 2.0.1 and from `@logseq/libs`, so the runtime check is the only
+  gate.
+
 ## [0.2.1] - 2026-07-25
 
 ### Fixed

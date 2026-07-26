@@ -12,6 +12,11 @@ import {
 } from './banner'
 import { createAsyncCache, type AsyncCache } from './cache'
 import { createCoalescer } from './coalesce'
+import {
+  classifyGraph,
+  createGraphGate,
+  type DecidedGraphSupport,
+} from './graph'
 import { openJournalDay, widgetHost } from './host'
 import { journalViewKey, toHostView, type HostView } from './journal'
 import type { WeekStart } from './progress'
@@ -45,6 +50,8 @@ import {
 } from './widgets'
 
 const TICK_INTERVAL_MS = 1000
+/** How often the graph is re-asked about while it is still loading. */
+const GRAPH_PROBE_INTERVAL_MS = 500
 /** How long a burst of graph transactions has to pause before data is re-read. */
 const GRAPH_CHANGE_DELAY_MS = 300
 /** …and how long an unbroken burst — someone typing — may hold that off. */
@@ -385,8 +392,36 @@ function tick(): void {
   renderWidgets(banner, buildWidgetViews(context, isVisible, (id) => data.get(id)))
 }
 
+/**
+ * Wait for a graph to load before ruling on it: a cold start answers "not a DB
+ * graph" for the milliseconds before the graph arrives, and taking that as
+ * final killed the plugin for the session on a DB graph. `onCurrentGraphChanged`
+ * is not enough on its own — a graph already loading when the plugin starts may
+ * never fire it — so the gate is also re-asked on an interval until it decides.
+ */
+async function awaitGraphSupport(): Promise<DecidedGraphSupport> {
+  const gate = createGraphGate(async () => {
+    const [graph, isDbGraph] = await Promise.all([
+      logseq.App.getCurrentGraph(),
+      logseq.App.checkCurrentIsDbGraph(),
+    ])
+    // Typed `Boolean`, but the bridge serialises a primitive.
+    return classifyGraph(graph, Boolean(isDbGraph))
+  })
+
+  const timer = window.setInterval(gate.recheck, GRAPH_PROBE_INTERVAL_MS)
+  logseq.App.onCurrentGraphChanged(() => gate.recheck())
+  gate.recheck()
+
+  try {
+    return await gate.decided
+  } finally {
+    window.clearInterval(timer)
+  }
+}
+
 async function main(): Promise<void> {
-  if (!(await logseq.App.checkCurrentIsDbGraph())) {
+  if ((await awaitGraphSupport()) === 'file') {
     await logseq.UI.showMsg(
       'DB Banner only supports Logseq DB graphs.',
       'warning',

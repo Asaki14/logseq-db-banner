@@ -92,9 +92,12 @@ the banner grows to whatever its content needs instead of clipping or overlappin
 
 ## DB graphs only
 
-`package.json` declares `logseq.unsupportedGraphType: "file"`, so Logseq will not enable
-the plugin on a file graph. At startup it also calls `logseq.App.checkCurrentIsDbGraph()`
-and exits with a warning if the current graph is not a DB graph.
+At startup the plugin calls `logseq.App.checkCurrentIsDbGraph()` and exits with a warning
+if the current graph is a file graph. That runtime check is the only gate: `package.json`
+declares `logseq.unsupportedGraphType: "file"`, but Logseq 2.0.1 does not read that field,
+so it will happily enable the plugin on a file graph. Because the answer arrives as `false`
+for the milliseconds before a graph finishes loading, the check is repeated until a graph
+is actually loaded — a slow start no longer leaves the banner switched off for the session.
 
 ## Settings
 
