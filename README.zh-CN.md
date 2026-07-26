@@ -23,7 +23,7 @@
 
 ## 仅支持 DB graph
 
-`package.json` 的 `logseq.unsupportedGraphType` 为 `"file"`，Logseq 不会在 file graph 上启用本插件。启动时还会再次调用 `logseq.App.checkCurrentIsDbGraph()`，若当前不是 DB graph 则提示并退出。
+启动时调用 `logseq.App.checkCurrentIsDbGraph()`，若当前是 file graph 则提示并退出。这个运行时判断是唯一的关卡：`package.json` 里虽然写了 `logseq.unsupportedGraphType: "file"`，但 Logseq 2.0.1 根本不读这个字段，file graph 上照样会启用插件。另外，图谱加载完成前的那几毫秒里该接口会返回 `false`，所以插件会一直重问到确实有图谱加载完毕为止——启动慢不会再让横幅整个会话都不出现。
 
 ## 设置项
 
