@@ -370,3 +370,204 @@ export const bannerStyles = `
   line-height: 1.45;
 }
 `
+
+/**
+ * The settings popover, which — unlike the banner — *is* part of the page and so
+ * follows the host theme: every colour comes from a Logseq variable, so light and
+ * dark are the app's own and no branding of ours is introduced. Scoped to
+ * `#lsdb-settings` for the same reason the banner rules are scoped: `provideStyle`
+ * is global to the host document.
+ */
+export const settingsPanelStyles = `
+#lsdb-settings {
+  --lsdb-settings-accent: var(--lx-accent-09, var(--ls-link-text-color, #2563eb));
+  --lsdb-settings-border: var(--ls-border-color, rgba(128, 128, 128, 0.3));
+  --lsdb-settings-muted: var(--ls-secondary-text-color, currentColor);
+
+  position: fixed;
+  z-index: 999;
+  width: 340px;
+  max-height: min(72vh, 620px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lsdb-settings-border);
+  border-radius: 8px;
+  background: var(--ls-primary-background-color, #fff);
+  color: var(--ls-primary-text-color, #222);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+#lsdb-settings .lsdb-settings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--lsdb-settings-border);
+}
+
+#lsdb-settings .lsdb-settings__title {
+  font-weight: 600;
+}
+
+#lsdb-settings .lsdb-settings__close {
+  margin: 0;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--lsdb-settings-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#lsdb-settings .lsdb-settings__close:hover {
+  background: var(--ls-tertiary-background-color, rgba(128, 128, 128, 0.16));
+  color: var(--ls-primary-text-color, #222);
+}
+
+#lsdb-settings .lsdb-settings__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 12px 10px;
+}
+
+#lsdb-settings .lsdb-settings__group + .lsdb-settings__group {
+  margin-top: 6px;
+}
+
+#lsdb-settings .lsdb-settings__heading {
+  margin: 10px 0 6px;
+  color: var(--lsdb-settings-muted);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+#lsdb-settings .lsdb-settings__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  cursor: default;
+}
+
+/* A toggle needs no field of its own, so its label sits beside the switch. */
+#lsdb-settings .lsdb-settings__row--toggle {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+#lsdb-settings .lsdb-settings__label {
+  color: var(--lsdb-settings-muted);
+  font-size: 12px;
+}
+
+#lsdb-settings .lsdb-settings__row--toggle .lsdb-settings__label {
+  color: var(--ls-primary-text-color, #222);
+  font-size: 13px;
+}
+
+#lsdb-settings .lsdb-settings__control {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--lsdb-settings-border);
+  border-radius: 4px;
+  background: var(--ls-secondary-background-color, rgba(128, 128, 128, 0.08));
+  color: var(--ls-primary-text-color, #222);
+  font: inherit;
+  font-size: 12px;
+}
+
+#lsdb-settings .lsdb-settings__control:focus {
+  outline: none;
+  border-color: var(--lsdb-settings-accent);
+}
+
+/* A value the parsers will discard: the banner would silently keep the old one. */
+#lsdb-settings .lsdb-settings__control--invalid {
+  border-color: var(--ls-error-text-color, #d9534f);
+}
+
+#lsdb-settings .lsdb-settings__select {
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+/* Switch: a checkbox stretched over the track, so the native control still owns
+   the state and the keyboard while the knob draws it. */
+#lsdb-settings .lsdb-settings__switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--lsdb-settings-border);
+  transition: background-color 0.15s ease;
+}
+
+#lsdb-settings .lsdb-settings__checkbox {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+#lsdb-settings .lsdb-settings__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+#lsdb-settings .lsdb-settings__switch:has(.lsdb-settings__checkbox:checked) {
+  background: var(--lsdb-settings-accent);
+}
+
+#lsdb-settings .lsdb-settings__checkbox:checked ~ .lsdb-settings__knob {
+  transform: translateX(14px);
+}
+
+#lsdb-settings .lsdb-settings__foot {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-top: 1px solid var(--lsdb-settings-border);
+}
+
+#lsdb-settings .lsdb-settings__link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lsdb-settings-accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#lsdb-settings .lsdb-settings__link:hover {
+  text-decoration: underline;
+}
+`

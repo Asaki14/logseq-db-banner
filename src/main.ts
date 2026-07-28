@@ -1,5 +1,4 @@
 import '@logseq/libs'
-import type { SettingSchemaDesc } from '@logseq/libs/dist/LSPlugin'
 import {
   applyAppearance,
   ensureBanner,
@@ -12,6 +11,7 @@ import {
 } from './banner'
 import { createAsyncCache, type AsyncCache } from './cache'
 import { createCoalescer } from './coalesce'
+import { settingsGroups, toSettingsSchema } from './fields'
 import {
   classifyGraph,
   createGraphGate,
@@ -19,14 +19,17 @@ import {
 } from './graph'
 import { openJournalDay, widgetHost } from './host'
 import { journalViewKey, toHostView, type HostView } from './journal'
+import {
+  closeSettingsPanel,
+  toggleSettingsPanel,
+  TOOLBAR_ACTION,
+  type SettingsValue,
+} from './panel'
 import type { WeekStart } from './progress'
 import { createRefresher } from './refresh'
 import { createQuoteRotation } from './rotation'
 import {
   DEFAULT_BANNER_HEIGHT,
-  DEFAULT_LIFESPAN_YEARS,
-  DEFAULT_QUOTE_TAG,
-  DEFAULT_WALLPAPER_POSITION,
   parseBirthDate,
   parseCssLength,
   parseLifespanYears,
@@ -38,10 +41,9 @@ import {
   resolveWidgetVisibility,
   settingsMigration,
   toAssetsUrl,
-  widgetVisibilityKey,
   type WallpaperSource,
 } from './settings'
-import { bannerStyles } from './styles'
+import { bannerStyles, settingsPanelStyles } from './styles'
 import {
   buildWidgetViews,
   widgetDataRequests,
@@ -59,110 +61,9 @@ const GRAPH_CHANGE_MAX_DELAY_MS = 1500
 
 const widgetIds = widgetDefinitions.map(({ id }) => id)
 
-const settingsSchema: SettingSchemaDesc[] = [
-  {
-    key: 'wallpaperHeading',
-    title: '🖼 Wallpaper / 壁纸',
-    description: '',
-    type: 'heading',
-    default: null,
-  },
-  {
-    key: 'wallpaperSource',
-    type: 'string',
-    default: '',
-    title: 'Wallpaper source / 壁纸来源',
-    description:
-      'An absolute local path (`/Users/me/Pictures/wall.jpg`), an `https://` URL, or a path relative to the graph assets folder. Leave empty for the gradient fallback. / 本机绝对路径、`https://` 链接，或相对于图谱 assets 目录的路径；留空则使用渐变兜底。',
-  },
-  {
-    key: 'wallpaperFit',
-    type: 'enum',
-    enumPicker: 'radio',
-    enumChoices: ['cover', 'contain', 'tile'],
-    default: 'cover',
-    title: 'Wallpaper fit / 填充方式',
-    description: 'How the image fills the banner. / 图片如何填充横幅。',
-  },
-  {
-    key: 'wallpaperPosition',
-    type: 'string',
-    default: DEFAULT_WALLPAPER_POSITION,
-    title: 'Wallpaper position / 图片位置',
-    description:
-      'CSS background-position, for example `50% 50%` or `center top`. / CSS background-position，例如 `50% 50%` 或 `center top`。',
-  },
-  {
-    key: 'bannerHeight',
-    type: 'string',
-    default: DEFAULT_BANNER_HEIGHT,
-    title: 'Banner height / 横幅高度',
-    description: 'A CSS length such as `220px` or `24vh`. / CSS 长度，例如 `220px`、`24vh`。',
-  },
-  {
-    key: 'progressHeading',
-    title: '⏳ Time progress / 时间进度',
-    description: '',
-    type: 'heading',
-    default: null,
-  },
-  {
-    key: 'birthDate',
-    type: 'string',
-    default: '',
-    title: 'Birth date / 出生日期',
-    description:
-      '`YYYY-MM-DD`. Required by the life-progress widget. / `YYYY-MM-DD`，人生进度组件需要它。',
-  },
-  {
-    key: 'lifespanYears',
-    type: 'number',
-    default: DEFAULT_LIFESPAN_YEARS,
-    title: 'Lifespan in years / 预期寿命（年）',
-    description: 'Used as the denominator of the life-progress bar. / 人生进度条的分母。',
-  },
-  {
-    key: 'weekStart',
-    type: 'enum',
-    enumPicker: 'select',
-    enumChoices: ['monday', 'sunday', 'saturday'],
-    default: 'monday',
-    title: 'Week starts on / 一周起始日',
-    description:
-      'Boundary used by the week-progress widget, and the first column of the calendar. / 周进度组件的分界，同时决定日历的首列。',
-  },
-  {
-    key: 'quoteHeading',
-    title: '💬 Quote / 每日一言',
-    description: '',
-    type: 'heading',
-    default: null,
-  },
-  {
-    key: 'quoteTag',
-    type: 'string',
-    default: DEFAULT_QUOTE_TAG,
-    title: 'Quote source tag / 语录来源标签',
-    description:
-      'Blocks carrying this tag, plus the top-level blocks of every page carrying it, become the quote pool; one is picked every time you open a journal view. Use "Quote" for Logseq\'s built-in Quote node type. Leave empty to turn the widget off. / 携带该标签的块，以及携带该标签的页面的顶层块，组成语录池，每次进入日记视图挑选一条；填 “Quote” 即使用 Logseq 内置的 Quote 节点类型；留空则关闭该组件。',
-  },
-  {
-    key: 'widgetsHeading',
-    title: '🧩 Widgets / 组件显示',
-    description: '',
-    type: 'heading',
-    default: null,
-  },
-  ...widgetDefinitions.map<SettingSchemaDesc>((definition) => ({
-    key: widgetVisibilityKey(definition.id),
-    type: 'boolean',
-    default: true,
-    title: `Show ${definition.label.toLowerCase()} widget / 显示${definition.label}组件`,
-    description: '',
-  })),
-]
-
-logseq.useSettingsSchema(settingsSchema)
+// Still registered, so Logseq's own settings pane keeps working as the fallback
+// for the popover — both are generated from `settingsGroups`.
+logseq.useSettingsSchema(toSettingsSchema(settingsGroups))
 
 interface BannerConfig {
   appearance: Omit<BannerAppearance, 'wallpaperUrl'>
@@ -174,11 +75,23 @@ interface BannerConfig {
   visibleWidgets: Set<string>
 }
 
+/**
+ * Everything this plugin has written to its own settings this session. A plugin
+ * cannot see its own `logseq.updateSettings` — `logseq.settings` still holds the
+ * old value when the promise resolves, and no settings-changed event fires — so
+ * the patch has to be kept and merged in until the host re-reads the file, which
+ * is exactly what a settings-changed event announces.
+ */
+let ownWrites: Record<string, unknown> = {}
+
+/** The stored settings as this plugin sees them: the host's plus its own writes. */
+function settingsSnapshot(): Record<string, unknown> {
+  return { ...((logseq.settings ?? {}) as Record<string, unknown>), ...ownWrites }
+}
+
 function readConfig(overrides: Record<string, unknown> = {}): BannerConfig {
-  const settings = {
-    ...((logseq.settings ?? {}) as Record<string, unknown>),
-    ...overrides,
-  }
+  ownWrites = { ...ownWrites, ...overrides }
+  const settings = settingsSnapshot()
 
   return {
     appearance: {
@@ -421,9 +334,24 @@ async function awaitGraphSupport(): Promise<DecidedGraphSupport> {
 }
 
 /**
+ * Apply one edit from the popover: persist it, and fold it into this session's
+ * config straight away — `logseq.settings` will not carry it and no
+ * settings-changed event fires for a plugin's own write, so the banner would
+ * otherwise not move until a restart.
+ */
+function applySetting(key: string, value: SettingsValue): void {
+  void logseq.updateSettings({ [key]: value })
+  config = readConfig({ [key]: value })
+  appliedAppearanceKey = ''
+  invalidateWidgetData()
+  tick()
+}
+
+/**
  * Put an icon in the toolbar's plugin area, which the user pins through the
- * toolbar's plugins popover. It opens the settings pane, the plugin's only
- * configuration surface.
+ * toolbar's plugins popover. It opens the plugin's own settings popover; Logseq's
+ * generated pane stays reachable from that popover's footer and from the plugin
+ * list.
  *
  * `registerUIItem('toolbar', …)` takes a template string rendered in the host
  * document, so the click cannot be a listener: `data-on-click` names a method on
@@ -432,8 +360,13 @@ async function awaitGraphSupport(): Promise<DecidedGraphSupport> {
  */
 function registerToolbarButton(): void {
   logseq.provideModel({
-    openBannerSettings() {
-      logseq.showSettingsUI()
+    [TOOLBAR_ACTION]() {
+      toggleSettingsPanel({
+        groups: settingsGroups,
+        readValue: (key) => settingsSnapshot()[key],
+        onChange: applySetting,
+        onOpenNativeSettings: () => logseq.showSettingsUI(),
+      })
     },
   })
 
@@ -442,7 +375,7 @@ function registerToolbarButton(): void {
     // is the plugin's name rather than a description of what the click does.
     key: 'DB-Banner',
     template: `
-      <a class="button" data-on-click="openBannerSettings" title="DB Banner settings">
+      <a class="button" data-on-click="${TOOLBAR_ACTION}" title="DB Banner settings">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round">
@@ -468,6 +401,7 @@ async function main(): Promise<void> {
   config = readConfig(await migrateSettings())
 
   logseq.provideStyle(bannerStyles)
+  logseq.provideStyle(settingsPanelStyles)
   setWidgetActionHandler((action) => {
     // The day the click opens may be the one the calendar is about to mark, so
     // the journal reads are dropped rather than waiting out their TTL.
@@ -475,14 +409,20 @@ async function main(): Promise<void> {
     void openJournalDay(action.day)
   })
   registerToolbarButton()
-  // A reload leaves the previous instance's banner in the host document; start
-  // from a clean one rather than adopting DOM this instance never built.
+  // A reload leaves the previous instance's banner — and any open popover, whose
+  // listeners died with its iframe — in the host document; start from a clean one
+  // rather than adopting DOM this instance never built.
   removeBanner()
+  closeSettingsPanel()
   await mountDecision.refresh()
   tick()
   const timer = window.setInterval(tick, TICK_INTERVAL_MS)
 
   const removeSettingsListener = logseq.onSettingsChanged(() => {
+    // Only an outside change gets here — a plugin's own write raises no event —
+    // so the host has just re-read the file, this session's writes included, and
+    // holding on to them could override what the user changed elsewhere.
+    ownWrites = {}
     config = readConfig()
     appliedAppearanceKey = ''
     invalidateWidgetData()
@@ -505,6 +445,7 @@ async function main(): Promise<void> {
     window.clearInterval(timer)
     graphChangeRefresh.cancel()
     removeSettingsListener()
+    closeSettingsPanel()
     removeBanner()
   })
 
