@@ -93,13 +93,12 @@ describe('injected styles', () => {
     expect(selectors.length).toBeGreaterThan(5)
   })
 
-  it('scopes every selector to a surface of its own, so other pages are untouched', () => {
+  it('scopes every selector to the banner, so banner-less pages are untouched', () => {
     // `provideStyle` is global to the host document; a rule that matched a host
-    // container would change pages this plugin never draws on. The plugin's own
-    // surfaces are the banner, the sidebar panel, and the class both wear.
+    // container would change pages this plugin never draws on.
     for (const selector of selectors) {
       for (const part of selector.split(',')) {
-        expect(part.trim()).toMatch(/^(\.lsdb-root|#lsdb-banner|#lsdb-sidebar)\b/)
+        expect(part.trim()).toMatch(/^#lsdb-banner\b/)
       }
     }
   })
@@ -118,12 +117,9 @@ describe('injected styles', () => {
   it('takes its scrim and ink from constants, not the host theme', () => {
     // The banner is a surface over an image, not part of the page. The theme
     // background is white in the light theme, so a scrim mixed from it left a
-    // dark wallpaper dark under the theme's dark ink. (The sidebar panel is not
-    // over an image and does override these — hence the shared block only.)
-    const shared = bannerStyles.match(/\.lsdb-root \{([\s\S]*?)\n\}/)?.[1]
-    expect(shared).toBeDefined()
+    // dark wallpaper dark under the theme's dark ink.
     for (const name of ['--lsdb-surface', '--lsdb-ink', '--lsdb-halo']) {
-      const value = shared?.match(new RegExp(`${name}:([^;]*);`))?.[1]
+      const value = bannerStyles.match(new RegExp(`${name}:([^;]*);`))?.[1]
       expect(value).toBeDefined()
       expect(value).not.toMatch(/--ls-primary-(background|text)-color/)
     }
@@ -221,58 +217,6 @@ describe('widget rendering', () => {
     expect(
       (container.querySelector('.lsdb-widget__percent') as HTMLElement).textContent,
     ).toBe('20.0%')
-  })
-
-  it('renders the same widget into two surfaces without moving it', () => {
-    // The banner and the sidebar panel show the same widget ids, so one shared
-    // element registry would hand both the same node and make each render steal
-    // it back from the other.
-    const bannerContainer = render([progressView('10.0%', '10.000%')])
-
-    const panel = document.createElement('div')
-    panel.id = 'lsdb-sidebar'
-    const panelContainer = document.createElement('div')
-    panelContainer.className = 'lsdb-banner__widgets'
-    panel.append(panelContainer)
-    document.body.append(panel)
-
-    renderWidgets(panel, [progressView('10.0%', '10.000%')], document)
-    renderWidgets(
-      bannerContainer.closest('#lsdb-banner') as HTMLElement,
-      [progressView('20.0%', '20.000%')],
-      document,
-    )
-
-    expect(bannerContainer.querySelectorAll('.lsdb-widget--progress')).toHaveLength(1)
-    expect(panelContainer.querySelectorAll('.lsdb-widget--progress')).toHaveLength(1)
-    expect(
-      (panelContainer.querySelector('.lsdb-widget__percent') as HTMLElement).textContent,
-    ).toBe('10.0%')
-    panel.remove()
-  })
-
-  it('adopts keyed children of a container it did not build itself', () => {
-    // The sidebar panel is the host app's DOM: a reloaded plugin instance meets a
-    // panel that already holds widgets, and must patch them rather than build a
-    // duplicate beside each one.
-    const panel = document.createElement('div')
-    panel.id = 'lsdb-sidebar'
-    const container = document.createElement('div')
-    container.className = 'lsdb-banner__widgets'
-    panel.append(container)
-    document.body.append(panel)
-
-    renderWidgets(panel, [progressView('10.0%', '10.000%')], document)
-    // A fresh element over the same DOM is what a new plugin instance starts from.
-    const reopened = panel.cloneNode(true) as HTMLElement
-    document.body.append(reopened)
-    renderWidgets(reopened, [progressView('20.0%', '20.000%')], document)
-
-    const reopenedContainer = reopened.querySelector('.lsdb-banner__widgets')
-    expect(reopenedContainer?.children).toHaveLength(1)
-    expect(reopenedContainer?.querySelectorAll('.lsdb-widget--progress')).toHaveLength(1)
-    panel.remove()
-    reopened.remove()
   })
 
   it('removes a widget that is no longer rendered', () => {
