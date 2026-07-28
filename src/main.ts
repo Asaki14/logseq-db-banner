@@ -3,6 +3,8 @@ import type { SettingSchemaDesc } from '@logseq/libs/dist/LSPlugin'
 import {
   applyAppearance,
   ensureBanner,
+  getHostDocument,
+  listenForWidgetClicks,
   markWallpaperLoaded,
   probeWallpaper,
   removeBanner,
@@ -22,6 +24,13 @@ import { journalViewKey, toHostView, type HostView } from './journal'
 import type { WeekStart } from './progress'
 import { createRefresher } from './refresh'
 import { createQuoteRotation } from './rotation'
+import {
+  findSidebarPanel,
+  sidebarPanelElement,
+  SIDEBAR_RENDERER_KEY,
+  SIDEBAR_TITLE,
+  type CreateElement,
+} from './sidebar'
 import {
   DEFAULT_BANNER_HEIGHT,
   DEFAULT_LIFESPAN_YEARS,
@@ -364,16 +373,17 @@ function tick(): void {
   // event twice per navigation — and because a missed event still rotates once
   // the mount decision catches up.
   quoteRotation.observe(journalKey)
-  if (journalKey === null) {
-    removeBanner()
-    return
-  }
+  if (journalKey === null) removeBanner()
 
-  const banner = ensureBanner()
-  if (!banner) return
+  const banner = journalKey === null ? null : ensureBanner()
+  // The sidebar panel is the host app's DOM, and it outlives the route: it is
+  // rendered into whenever it is open, on a journal view or not.
+  const panel = findSidebarPanel(getHostDocument())
+  // No surface to draw on is also the one case that must not query the graph.
+  if (!banner && !panel) return
 
   // Set on creation and cleared whenever Logseq re-mounts the content area.
-  if (banner.dataset.appearanceKey !== appliedAppearanceKey) {
+  if (banner && banner.dataset.appearanceKey !== appliedAppearanceKey) {
     void refreshAppearance(banner)
   }
 
@@ -389,7 +399,51 @@ function tick(): void {
     void cache.ensure(request.key, request.ttlMs, () => request.load(widgetHost))
   }
 
-  renderWidgets(banner, buildWidgetViews(context, isVisible, (id) => data.get(id)))
+  const views = buildWidgetViews(context, isVisible, (id) => data.get(id))
+  if (banner) renderWidgets(banner, views)
+  if (panel) {
+    // The panel's own listener died with the iframe of whichever instance opened
+    // it, so it is re-delegated here rather than at creation.
+    listenForWidgetClicks(panel)
+    renderWidgets(panel, views)
+  }
+}
+
+/**
+ * Put the banner's widgets in the right sidebar as well.
+ *
+ * `logseq.Experiments.registerSidebarRenderer` is the API for this, and it is not
+ * in @logseq/libs 0.2.11 yet — it lands the descriptor in the host's hosted-
+ * renderer registry with `type: 'sidebar'`, which is what makes the entry appear
+ * in the sidebar's own plugin dropdown. `invokeExperMethod` is the 0.2.11 escape
+ * hatch to the same host method (`logseq.sdk.experiments.register_hosted_renderer`,
+ * confirmed present on 2.0.1), so the SDK's own argument shape is written out.
+ *
+ * The `render` callback runs in the host realm and its return value goes into the
+ * host's React tree, so it returns an element built with the host's own React.
+ */
+function registerSidebarPanel(): void {
+  const createElement = (
+    logseq.Experiments.React as {
+      createElement: CreateElement
+    } | null
+  )?.createElement
+  if (typeof createElement !== 'function') {
+    console.warn('[db-banner] No host React; the sidebar panel is unavailable')
+    return
+  }
+
+  logseq.Experiments.invokeExperMethod(
+    'registerHostedRenderer',
+    logseq.baseInfo.id,
+    SIDEBAR_RENDERER_KEY,
+    {
+      type: 'sidebar',
+      title: SIDEBAR_TITLE,
+      render: () =>
+        sidebarPanelElement(createElement, () => logseq.showSettingsUI()),
+    },
+  )
 }
 
 /**
@@ -438,6 +492,7 @@ async function main(): Promise<void> {
     invalidateWidgetData()
     void openJournalDay(action.day)
   })
+  registerSidebarPanel()
   // A reload leaves the previous instance's banner in the host document; start
   // from a clean one rather than adopting DOM this instance never built.
   removeBanner()
