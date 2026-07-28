@@ -10,7 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A toolbar icon, pinnable from the toolbar's plugins popover, that opens the plugin's
-  settings pane — the quick way to the configuration from anywhere in the graph.
+  settings — the quick way to the configuration from anywhere in the graph.
+- The icon now opens the plugin's **own** settings popover instead of Logseq's generated
+  schema pane: the same settings, as native-looking controls that follow the active theme
+  (every colour comes from a Logseq CSS variable), applied to the banner as you change
+  them. It closes on an outside click, on `Escape`, on its close button and on a second
+  click of the icon, and its footer still links to Logseq's pane, which keeps working and
+  edits the same values. A value the plugin would discard — a birth date that is not a
+  date, a height that is not a CSS length — is marked in the field instead of looking
+  applied.
 
 ## [0.2.2] - 2026-07-26
 

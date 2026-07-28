@@ -101,8 +101,11 @@ is actually loaded — a slow start no longer leaves the banner switched off for
 
 ## Settings
 
-Configure these under `Settings → Plugin Settings → DB Banner`, or through the plugin's
-toolbar icon — pin it from the toolbar's plugins popover and it opens the same pane:
+Click the plugin's toolbar icon — pin it from the toolbar's plugins popover — and a
+compact popover hangs under it with every setting below. It follows the active Logseq
+theme, and each change applies to the banner as you make it. Logseq's own generated pane
+(`Settings → Plugin Settings → DB Banner`, also linked from the popover's footer) edits
+exactly the same values:
 
 | Setting | Default | Notes |
 | --- | --- | --- |
