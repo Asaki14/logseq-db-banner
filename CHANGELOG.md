@@ -9,10 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- A right sidebar panel carrying the same widgets as the banner, registered through
-  `logseq.Experiments.registerSidebarRenderer` and opened from the sidebar's plugin
-  dropdown. It follows the app's light/dark theme, stacks its cards in one column, and
-  offers a button that opens the plugin's settings pane.
+- A toolbar icon, pinnable from the toolbar's plugins popover, that opens the plugin's
+  settings pane — the quick way to the configuration from anywhere in the graph.
 
 ## [0.2.2] - 2026-07-26
 

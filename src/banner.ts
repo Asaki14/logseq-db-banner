@@ -25,14 +25,6 @@ import type { WidgetView } from './widgets'
 
 export const BANNER_ID = 'lsdb-banner'
 /**
- * Marks a surface the widget styles apply to. The banner is one; the right
- * sidebar panel is the other, and both carry it so the card, widget and calendar
- * rules are written once instead of per mount point.
- */
-export const ROOT_CLASS = 'lsdb-root'
-/** The element inside a root that widget cards are reconciled into. */
-export const WIDGETS_CLASS = 'lsdb-banner__widgets'
-/**
  * The banner goes inside the content column, never into `#main-content-container`
  * itself: that container is `display: flex; flex-direction: row` (it centres the
  * column, which is its only child), so a banner injected there becomes a second
@@ -48,28 +40,10 @@ export interface BannerAppearance {
   position: string
 }
 
-interface RenderedElements {
-  /** Widget roots by id, so a tick can patch instead of rebuilding. */
-  widgets: Map<string, HTMLElement>
-  /** Group cards by group id, keyed for the same reason. */
-  groups: Map<string, HTMLElement>
-}
-
-/**
- * One registry per mount point. The banner and the sidebar panel render the same
- * widget ids, so a single shared registry would hand the same element to both and
- * make each render move it out of the other.
- */
-const renderedElements = new WeakMap<HTMLElement, RenderedElements>()
-
-function elementsFor(root: HTMLElement): RenderedElements {
-  const existing = renderedElements.get(root)
-  if (existing) return existing
-
-  const created: RenderedElements = { widgets: new Map(), groups: new Map() }
-  renderedElements.set(root, created)
-  return created
-}
+/** Widget roots by id, so a tick can patch instead of rebuilding. */
+const widgetElements = new Map<string, HTMLElement>()
+/** Group cards by group id, keyed for the same reason. */
+const groupElements = new Map<string, HTMLElement>()
 
 let actionHandler: ((action: WidgetAction) => void) | null = null
 
@@ -102,7 +76,7 @@ export function ensureBanner(doc = getHostDocument()): HTMLElement | null {
     // A banner left behind by a previous plugin instance carries that instance's
     // click listener, which died with its iframe. Re-adding ours is a no-op when
     // it is already attached, and revives clicks when it is not.
-    const widgets = existing.querySelector(`.${WIDGETS_CLASS}`)
+    const widgets = existing.querySelector('.lsdb-banner__widgets')
     widgets?.removeEventListener('click', onWidgetClick)
     widgets?.addEventListener('click', onWidgetClick)
     return existing
@@ -110,31 +84,28 @@ export function ensureBanner(doc = getHostDocument()): HTMLElement | null {
 
   const banner = doc.createElement('div')
   banner.id = BANNER_ID
-  banner.classList.add(ROOT_CLASS, 'lsdb-banner--fallback')
+  banner.classList.add('lsdb-banner--fallback')
 
   const image = doc.createElement('div')
   image.className = 'lsdb-banner__image'
   const widgets = doc.createElement('div')
-  widgets.className = WIDGETS_CLASS
+  widgets.className = 'lsdb-banner__widgets'
   widgets.addEventListener('click', onWidgetClick)
 
   banner.append(image, widgets)
   anchor.prepend(banner)
+  forgetRenderedElements()
   return banner
 }
 
 export function removeBanner(doc = getHostDocument()): void {
   doc.getElementById(BANNER_ID)?.remove()
+  forgetRenderedElements()
 }
 
-/**
- * Delegate widget clicks from a container the plugin did not create itself — the
- * sidebar panel, whose DOM the host app renders. Re-adding is a no-op when the
- * listener is already attached.
- */
-export function listenForWidgetClicks(container: HTMLElement): void {
-  container.removeEventListener('click', onWidgetClick)
-  container.addEventListener('click', onWidgetClick)
+function forgetRenderedElements(): void {
+  widgetElements.clear()
+  groupElements.clear()
 }
 
 export function applyAppearance(
@@ -183,14 +154,13 @@ export function markWallpaperLoaded(
 }
 
 export function renderWidgets(
-  root: HTMLElement,
+  banner: HTMLElement,
   views: WidgetView[],
   doc = getHostDocument(),
 ): void {
-  const container = root.querySelector<HTMLElement>(`.${WIDGETS_CLASS}`)
+  const container = banner.querySelector<HTMLElement>('.lsdb-banner__widgets')
   if (!container) return
 
-  const { widgets: widgetElements, groups: groupElements } = elementsFor(root)
   const groups = groupViews(views)
   reconcile(container, groups.map(({ group }) => group), groupElements, (group) => {
     const card = doc.createElement('div')
@@ -246,14 +216,7 @@ function reconcile(
   const wanted = new Set(keys)
   for (const child of [...parent.children]) {
     const key = (child as HTMLElement).dataset.reconcileKey
-    if (key !== undefined && wanted.has(key)) {
-      // A container the plugin did not build itself — the sidebar panel, or a
-      // banner left by a previous instance — can already hold keyed children this
-      // registry has never seen. Adopting them is what keeps a second pass from
-      // building a duplicate beside each one.
-      if (!registry.has(key)) registry.set(key, child as HTMLElement)
-      continue
-    }
+    if (key !== undefined && wanted.has(key)) continue
     child.remove()
     if (key !== undefined) registry.delete(key)
   }
