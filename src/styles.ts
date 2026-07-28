@@ -3,7 +3,9 @@
  * TypeScript string so the build needs no CSS asset plumbing.
  *
  * `provideStyle` is global to the host document, so every rule stays scoped to
- * `#lsdb-banner`.
+ * one of the plugin's own surfaces: `.lsdb-root`, worn by both the banner and the
+ * right sidebar panel, or `#lsdb-banner` / `#lsdb-sidebar` for what belongs to
+ * only one of them.
  *
  * The banner is one surface, not a row of widgets: two frosted cards of the same
  * width and height held apart at its two edges — the month grid at the left, the progress
@@ -24,7 +26,7 @@
  */
 
 export const bannerStyles = `
-#lsdb-banner {
+.lsdb-root {
   --lsdb-gap: 12px;
   --lsdb-radius: 14px;
   --lsdb-calendar-cell: 26px;
@@ -65,6 +67,13 @@ export const bannerStyles = `
     transparent
   );
 
+  box-sizing: border-box;
+  color: var(--lsdb-ink);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+#lsdb-banner {
   position: relative;
   width: 100%;
   /* A minimum, not a fixed height: the cards are in normal flow, so a narrow
@@ -72,15 +81,11 @@ export const bannerStyles = `
   min-height: var(--lsdb-banner-height, 280px);
   margin-bottom: 14px;
   padding: 14px;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   border-radius: var(--lsdb-radius);
   overflow: hidden;
   isolation: isolate;
-  color: var(--lsdb-ink);
-  font-size: 12px;
-  line-height: 1.3;
 }
 
 #lsdb-banner .lsdb-banner__image {
@@ -123,22 +128,25 @@ export const bannerStyles = `
    a floor for a column too narrow to hold both, where the row wraps; a lone card
    (calendar hidden, or every panel widget off) sits at the left end, where the
    calendar sits when there are two. */
-#lsdb-banner .lsdb-banner__widgets {
+.lsdb-root .lsdb-banner__widgets {
   position: relative;
-  flex: 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: space-between;
   gap: var(--lsdb-gap);
   min-height: 0;
 }
 
-#lsdb-banner .lsdb-banner__widgets:empty {
+#lsdb-banner .lsdb-banner__widgets {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: space-between;
+}
+
+.lsdb-root .lsdb-banner__widgets:empty {
   display: none;
 }
 
-#lsdb-banner .lsdb-card {
+.lsdb-root .lsdb-card {
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -157,19 +165,19 @@ export const bannerStyles = `
   text-shadow: var(--lsdb-text-shadow);
 }
 
-#lsdb-banner .lsdb-card:empty {
+.lsdb-root .lsdb-card:empty {
   display: none;
 }
 
 /* Both cards are as wide as their content asks for, never wider. */
-#lsdb-banner .lsdb-card--calendar {
+.lsdb-root .lsdb-card--calendar {
   flex: 0 0 auto;
 }
 
 /* Stretched to the month grid's height, its content spread over that height: the
    spare room goes between the bars and above the quote rather than pooling under
    the last one, and it works the same when the quote is hidden. */
-#lsdb-banner .lsdb-card--panel {
+.lsdb-root .lsdb-card--panel {
   flex: 0 1 auto;
   width: var(--lsdb-card-width);
   gap: 9px;
@@ -178,11 +186,11 @@ export const bannerStyles = `
 
 /* Widgets -------------------------------------------------------------- */
 
-#lsdb-banner .lsdb-widget {
+.lsdb-root .lsdb-widget {
   min-width: 0;
 }
 
-#lsdb-banner .lsdb-widget__head {
+.lsdb-root .lsdb-widget__head {
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -192,7 +200,7 @@ export const bannerStyles = `
 /* Never shrinks: the labels are single short words, and at the card's width the
    row has no room to spare, so the deficit has to come out of the hint instead
    of clipping "Week" to "We…". */
-#lsdb-banner .lsdb-widget__label {
+.lsdb-root .lsdb-widget__label {
   flex: 0 0 auto;
   min-width: 0;
   overflow: hidden;
@@ -206,7 +214,7 @@ export const bannerStyles = `
    why it grows: it is the spacer that holds the percentage against the row's
    right edge now that the label no longer stretches. When it does carry text it
    is the one part of the row allowed to give way, on one line. */
-#lsdb-banner .lsdb-widget__hint {
+.lsdb-root .lsdb-widget__hint {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -219,7 +227,7 @@ export const bannerStyles = `
 
 /* Fixed field, tabular figures: the third decimal turns over about once a
    second on the day bar, and must not shove the row around when it does. */
-#lsdb-banner .lsdb-widget__percent {
+.lsdb-root .lsdb-widget__percent {
   flex: 0 0 auto;
   width: 5.4em;
   text-align: right;
@@ -228,7 +236,7 @@ export const bannerStyles = `
   font-feature-settings: 'tnum' 1;
 }
 
-#lsdb-banner .lsdb-widget__track {
+.lsdb-root .lsdb-widget__track {
   margin-top: 5px;
   height: 5px;
   border-radius: 999px;
@@ -242,7 +250,7 @@ export const bannerStyles = `
   overflow: hidden;
 }
 
-#lsdb-banner .lsdb-widget__bar {
+.lsdb-root .lsdb-widget__bar {
   height: 100%;
   width: 0;
   border-radius: inherit;
@@ -252,7 +260,7 @@ export const bannerStyles = `
 
 /* Calendar ------------------------------------------------------------- */
 
-#lsdb-banner .lsdb-widget--calendar {
+.lsdb-root .lsdb-widget--calendar {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
@@ -260,11 +268,11 @@ export const bannerStyles = `
   min-height: 0;
 }
 
-#lsdb-banner .lsdb-widget--calendar .lsdb-widget__head {
+.lsdb-root .lsdb-widget--calendar .lsdb-widget__head {
   justify-content: center;
 }
 
-#lsdb-banner .lsdb-widget--calendar .lsdb-widget__label {
+.lsdb-root .lsdb-widget--calendar .lsdb-widget__label {
   flex: 0 1 auto;
   text-align: center;
   font-size: 13px;
@@ -272,7 +280,7 @@ export const bannerStyles = `
 
 /* Fixed cells, so the card is exactly as big as a readable month and no bigger:
    the grid no longer stretches to whatever height the banner happens to have. */
-#lsdb-banner .lsdb-calendar {
+.lsdb-root .lsdb-calendar {
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(7, var(--lsdb-calendar-cell));
@@ -282,23 +290,23 @@ export const bannerStyles = `
   font-variant-numeric: tabular-nums;
 }
 
-#lsdb-banner .lsdb-calendar__weekday,
-#lsdb-banner .lsdb-calendar__pad,
-#lsdb-banner .lsdb-calendar__day {
+.lsdb-root .lsdb-calendar__weekday,
+.lsdb-root .lsdb-calendar__pad,
+.lsdb-root .lsdb-calendar__day {
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
 }
 
-#lsdb-banner .lsdb-calendar__weekday {
+.lsdb-root .lsdb-calendar__weekday {
   opacity: 0.78;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
-#lsdb-banner .lsdb-calendar__day {
+.lsdb-root .lsdb-calendar__day {
   position: relative;
   margin: 0;
   padding: 0;
@@ -314,12 +322,12 @@ export const bannerStyles = `
   text-shadow: var(--lsdb-text-shadow);
 }
 
-#lsdb-banner .lsdb-calendar__day:hover {
+.lsdb-root .lsdb-calendar__day:hover {
   background: color-mix(in srgb, var(--lsdb-ink) 16%, transparent);
 }
 
 /* The one accent, shared with the progress fills. */
-#lsdb-banner .lsdb-calendar__day[data-today='true'] {
+.lsdb-root .lsdb-calendar__day[data-today='true'] {
   background: var(--lsdb-accent);
   color: var(--ls-primary-background-color, #10131a);
   font-weight: 700;
@@ -328,7 +336,7 @@ export const bannerStyles = `
 }
 
 /* The has-content marker. */
-#lsdb-banner .lsdb-calendar__day[data-content='true']::after {
+.lsdb-root .lsdb-calendar__day[data-content='true']::after {
   content: '';
   position: absolute;
   bottom: 2px;
@@ -343,21 +351,21 @@ export const bannerStyles = `
   opacity: 0.9;
 }
 
-#lsdb-banner .lsdb-calendar__day[data-today='true'][data-content='true']::after {
+.lsdb-root .lsdb-calendar__day[data-today='true'][data-content='true']::after {
   box-shadow: none;
   opacity: 1;
 }
 
 /* Quote ---------------------------------------------------------------- */
 
-#lsdb-banner .lsdb-widget--quote {
+.lsdb-root .lsdb-widget--quote {
   padding-top: 10px;
   border-top: 1px solid var(--lsdb-hairline);
 }
 
 /* Upright and full-strength rather than dimmed italic: the same words at the same
    size read as a sentence instead of a caption. */
-#lsdb-banner .lsdb-quote__text {
+.lsdb-root .lsdb-quote__text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -368,5 +376,57 @@ export const bannerStyles = `
   overflow-wrap: anywhere;
   font-size: 12px;
   line-height: 1.45;
+}
+
+/* Right sidebar panel -------------------------------------------------- */
+
+/* The one place the surface tokens are overridden. The banner's dark glass and
+   light ink exist because it sits over a photograph; the sidebar panel sits in
+   the page, where a constant dark card would read as a foreign object in the
+   light theme, so here the cards do follow the theme. */
+#lsdb-sidebar {
+  --lsdb-surface: var(--ls-secondary-background-color, rgba(12, 15, 22, 0.3));
+  --lsdb-ink: var(--ls-primary-text-color, #f0f3f8);
+  --lsdb-halo: var(--ls-primary-background-color, #0c0f16);
+  --lsdb-text-shadow: none;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--lsdb-gap);
+}
+
+/* One card under the other, each as wide as the sidebar: there is no wallpaper
+   between them to protect, and the sidebar is narrower than the pair. */
+#lsdb-sidebar .lsdb-banner__widgets {
+  flex-direction: column;
+}
+
+#lsdb-sidebar .lsdb-card,
+#lsdb-sidebar .lsdb-card--panel {
+  width: auto;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* The month grid centres itself rather than hugging the left edge of a card that
+   is now wider than it. */
+#lsdb-sidebar .lsdb-calendar {
+  justify-content: center;
+}
+
+#lsdb-sidebar .lsdb-sidebar__settings {
+  align-self: flex-start;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--lsdb-hairline);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#lsdb-sidebar .lsdb-sidebar__settings:hover {
+  background: color-mix(in srgb, var(--lsdb-ink) 12%, transparent);
 }
 `
