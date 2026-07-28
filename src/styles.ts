@@ -353,18 +353,19 @@ export const bannerStyles = `
 #lsdb-banner .lsdb-widget--quote {
   padding-top: 10px;
   border-top: 1px solid var(--lsdb-hairline);
+  /* Let the quote take whatever room the panel has, but never push past it:
+     it may shrink below its content (min-height: 0) and clips at the panel's
+     bound, which is the banner's height. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Upright and full-strength rather than dimmed italic: the same words at the same
    size read as a sentence instead of a caption. */
 #lsdb-banner .lsdb-quote__text {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  /* Belt and braces: the clamp bounds the height in Chromium, the max-height
-     bounds it anywhere else, and a single long word can never widen the card. */
-  max-height: 4.5em;
-  overflow: hidden;
+  /* No line clamp: the quote shows in full and is cut only when it truly
+     outgrows the banner, where the widget's own bound clips it. */
   overflow-wrap: anywhere;
   font-size: 12px;
   line-height: 1.45;
