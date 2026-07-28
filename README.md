@@ -90,6 +90,23 @@ leaves a broad expanse of wallpaper: the two cards cover about 40% of the banner
 38% before they were made equal height, against 88% for the old full-width layout. That height is a *minimum*: set it shorter and
 the banner grows to whatever its content needs instead of clipping or overlapping.
 
+## Right sidebar panel
+
+The same widgets are also available as a right sidebar panel, so the calendar, the
+progress bars and the quote stay on screen on a page that is not a journal. Open the
+right sidebar, press the **cube** button in its top bar and pick **DB Banner**. The
+panel is not a second banner: it has no wallpaper, it stacks its cards in one column,
+and — unlike the banner, which is a surface laid over a photograph — its cards follow
+the app's light/dark theme. Clicking a day navigates just as it does in the banner, and
+the **Banner settings / 横幅设置** button at the bottom opens the plugin's own settings
+pane.
+
+Registration goes through `logseq.Experiments.registerSidebarRenderer`, the only API a
+plugin has for the sidebar's item list. @logseq/libs 0.2.11 does not expose that wrapper
+yet, so `main.ts` calls the same host method through `invokeExperMethod`. Logseq labels
+the panel's header with its internal renderer key rather than the registered title; that
+is the host's own rendering and not something the plugin can set.
+
 ## DB graphs only
 
 At startup the plugin calls `logseq.App.checkCurrentIsDbGraph()` and exits with a warning
