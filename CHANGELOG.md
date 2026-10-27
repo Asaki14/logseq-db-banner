@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Refreshed the English and Chinese READMEs, renamed the Chinese guide to
+  `README_CN.md`, and added `llms.txt`.
+
 ## [0.3.0] - 2026-07-29
 
 ### Added
@@ -69,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The README is split by language: `README.md` is English only, `README.zh-CN.md`
+- The README is split by language: `README.md` is English only, `README_CN.md`
   is Chinese only, each complete on its own and linking to the other from its first
   line, so switching language replaces the page instead of scrolling down it. Both
   reference the same committed screenshot, and the release zip carries both files.
