@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildCalendarGrid, daysInMonth, type CalendarCell } from './calendar'
+import {
+  buildCalendarGrid,
+  daysInMonth,
+  shiftCalendarMonth,
+  type CalendarCell,
+} from './calendar'
 import type { WeekStart } from './progress'
 
 const MONDAY: WeekStart = 1
@@ -28,6 +33,19 @@ describe('daysInMonth', () => {
     expect(daysInMonth(2100, 2)).toBe(28)
     // Divisible by 400: a leap year.
     expect(daysInMonth(2000, 2)).toBe(29)
+  })
+})
+
+describe('shiftCalendarMonth', () => {
+  it('rolls over in both directions at year boundaries', () => {
+    const previous = shiftCalendarMonth(new Date(2026, 0, 25), -1)
+    expect([previous.getFullYear(), previous.getMonth(), previous.getDate()]).toEqual([
+      2025, 11, 1,
+    ])
+    const next = shiftCalendarMonth(new Date(2025, 11, 25), 1)
+    expect([next.getFullYear(), next.getMonth(), next.getDate()]).toEqual([
+      2026, 0, 1,
+    ])
   })
 })
 

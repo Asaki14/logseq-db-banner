@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Calendar arrows browse previous and next months; day clicks open journals in the
+  displayed month.
+
 ### Changed
 
 - Refreshed the English and Chinese READMEs, renamed the Chinese guide to

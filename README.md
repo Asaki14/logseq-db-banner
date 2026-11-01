@@ -19,7 +19,7 @@
 
 | Feature | When | What it does |
 | :--- | :--- | :--- |
-| Month calendar | In a journal | Highlights today, marks days with journal content, and opens any date when clicked. |
+| Month calendar | In a journal | Highlights today, marks days with journal content, browses months, and opens any displayed date when clicked. |
 | Time progress | Every second | Shows progress through the day, week, year, and (if configured) life. |
 | Wallpaper | In a journal | Adds a local or graph wallpaper behind the widgets; uses a gradient when unset or unavailable. |
 | Quote | In a journal | Picks a quote from tagged blocks or pages when you arrive at a journal view. |

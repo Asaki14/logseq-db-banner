@@ -29,6 +29,11 @@ export interface CalendarGrid {
 
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
+/** Return the first day of the month `offset` months from `date`. */
+export function shiftCalendarMonth(date: Date, offset: -1 | 1): Date {
+  return new Date(date.getFullYear(), date.getMonth() + offset, 1)
+}
+
 /** Days in a 1–12 month, leap years included (day 0 of the next month). */
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate()
@@ -38,9 +43,10 @@ export function buildCalendarGrid(
   now: Date,
   weekStart: WeekStart,
   hasContent: (journalDay: number) => boolean = () => false,
+  viewedMonth: Date = now,
 ): CalendarGrid {
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
+  const year = viewedMonth.getFullYear()
+  const month = viewedMonth.getMonth() + 1
   const length = daysInMonth(year, month)
   const leading = (new Date(year, month - 1, 1).getDay() - weekStart + 7) % 7
   const today = toJournalDay(now)

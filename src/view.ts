@@ -7,12 +7,16 @@
 
 export type WidgetTag = 'div' | 'span' | 'button'
 
-/** Something a click on a node asks the plugin to do. */
-export type WidgetAction = {
-  kind: 'openJournalDay'
-  /** `YYYYMMDD`, the same shape as Logseq's `journalDay`. */
-  day: number
-}
+export type WidgetAction =
+  | {
+      kind: 'openJournalDay'
+      /** `YYYYMMDD`, the same shape as Logseq's `journalDay`. */
+      day: number
+    }
+  | {
+      kind: 'changeCalendarMonth'
+      direction: -1 | 1
+    }
 
 export interface WidgetNode {
   /** Defaults to `div`. */
@@ -48,7 +52,13 @@ export function decodeAction(raw: unknown): WidgetAction | null {
   if (typeof parsed !== 'object' || parsed === null) return null
 
   const { kind, day } = parsed as Record<string, unknown>
-  if (kind !== 'openJournalDay') return null
-  if (typeof day !== 'number' || !Number.isInteger(day) || day <= 0) return null
-  return { kind, day }
+  if (kind === 'openJournalDay') {
+    if (typeof day !== 'number' || !Number.isInteger(day) || day <= 0) return null
+    return { kind, day }
+  }
+  const direction = (parsed as Record<string, unknown>).direction
+  if (kind === 'changeCalendarMonth' && (direction === -1 || direction === 1)) {
+    return { kind, direction }
+  }
+  return null
 }

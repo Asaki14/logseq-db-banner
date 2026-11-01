@@ -25,6 +25,7 @@ import {
   TOOLBAR_ACTION,
   type SettingsValue,
 } from './panel'
+import { shiftCalendarMonth } from './calendar'
 import type { WeekStart } from './progress'
 import { createRefresher } from './refresh'
 import { createQuoteRotation } from './rotation'
@@ -159,6 +160,8 @@ let appliedAppearanceKey = ''
 let probedWallpaperUrl: string | null = null
 /** The journal view on screen, or `null` when the banner does not belong here. */
 let journalKey: string | null = null
+/** The calendar month stays fixed across ticks until this journal view changes. */
+let calendarMonth: Date | null = null
 /** Holds the quote for as long as the user stays on one journal view. */
 const quoteRotation = createQuoteRotation()
 
@@ -192,7 +195,11 @@ async function readHostView(): Promise<HostView> {
  * order and writing a stale answer.
  */
 const mountDecision = createRefresher(async () => {
-  journalKey = journalViewKey(await readHostView())
+  const nextJournalKey = journalViewKey(await readHostView())
+  if (nextJournalKey !== journalKey) {
+    journalKey = nextJournalKey
+    calendarMonth = nextJournalKey === null ? null : new Date()
+  }
 })
 
 function appearanceKey(url: string | null): string {
@@ -258,8 +265,10 @@ const graphChangeRefresh = createCoalescer(
 )
 
 function widgetContext(): WidgetContext {
+  const now = new Date()
   return {
-    now: new Date(),
+    now,
+    calendarMonth: calendarMonth ?? now,
     weekStart: config.weekStart,
     birthDate: config.birthDate,
     lifespanYears: config.lifespanYears,
@@ -403,6 +412,14 @@ async function main(): Promise<void> {
   logseq.provideStyle(bannerStyles)
   logseq.provideStyle(settingsPanelStyles)
   setWidgetActionHandler((action) => {
+    if (action.kind === 'changeCalendarMonth') {
+      calendarMonth = shiftCalendarMonth(
+        calendarMonth ?? new Date(),
+        action.direction,
+      )
+      tick()
+      return
+    }
     // The day the click opens may be the one the calendar is about to mark, so
     // the journal reads are dropped rather than waiting out their TTL.
     invalidateWidgetData()

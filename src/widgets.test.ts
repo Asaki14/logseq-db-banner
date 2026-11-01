@@ -12,6 +12,7 @@ const widgetIds = widgetDefinitions.map(({ id }) => id)
 
 const context: WidgetContext = {
   now: new Date(2025, 6, 25, 12, 0), // Friday noon
+  calendarMonth: new Date(2025, 6, 1),
   weekStart: 1,
   birthDate: new Date(1990, 0, 1),
   lifespanYears: 85,
@@ -171,7 +172,7 @@ describe('calendar widget', () => {
       'calendar',
     )
 
-  it('asks the host for the visible month only', () => {
+  it('requests content for the viewed month', () => {
     const requests = widgetDataRequests(context, allVisible)
     const calendar = requests.find((entry) => entry.id === 'calendar')
     expect(calendar?.request.key).toBe('journal-content:2025-7')
@@ -182,20 +183,49 @@ describe('calendar widget', () => {
     } satisfies WidgetHost
     void calendar?.request.load(host)
     expect(host.journalDaysWithContent).toHaveBeenCalledWith(20250701, 20250731)
+
+    const previousMonth = widgetDataRequests(
+      { ...context, calendarMonth: new Date(2025, 5, 1) },
+      allVisible,
+    ).find((entry) => entry.id === 'calendar')
+    expect(previousMonth?.request.key).toBe('journal-content:2025-6')
   })
 
-  it('re-keys its data when the month changes, but not on a new day', () => {
-    const keyAt = (now: Date) =>
-      widgetDataRequests({ ...context, now }, allVisible).find(
-        (entry) => entry.id === 'calendar',
-      )?.request.key
-    expect(keyAt(new Date(2025, 6, 26))).toBe(keyAt(context.now))
-    expect(keyAt(new Date(2025, 7, 1))).not.toBe(keyAt(context.now))
+  it('re-keys its data when the viewed month changes', () => {
+    const june = widgetDataRequests(
+      { ...context, calendarMonth: new Date(2025, 5, 1) },
+      allVisible,
+    ).find((entry) => entry.id === 'calendar')?.request.key
+    const july = widgetDataRequests(context, allVisible).find(
+      (entry) => entry.id === 'calendar',
+    )?.request.key
+    expect(june).not.toBe(july)
+  })
+
+  it('places month navigation actions around the viewed month label', () => {
+    const node = calendarNode([], { calendarMonth: new Date(2025, 5, 1) })
+    const children = node.children?.[0].children
+    expect(children?.map((child) => child.text)).toEqual(['‹', 'June 2025', '›'])
+    expect(children?.filter((child) => child.action).map((child) => child.action)).toEqual([
+      { kind: 'changeCalendarMonth', direction: -1 },
+      { kind: 'changeCalendarMonth', direction: 1 },
+    ])
+  })
+
+  it('shows viewed-month content marks without moving the today highlight', () => {
+    const node = calendarNode([20250603, 20250725], {
+      calendarMonth: new Date(2025, 5, 1),
+    })
+    const days = collect(node, (candidate) => candidate.class === 'lsdb-calendar__day')
+    expect(days).toHaveLength(30)
+    expect(days[2].action).toEqual({ kind: 'openJournalDay', day: 20250603 })
+    expect(days[2].data?.content).toBe('true')
+    expect(days.filter((day) => day.data?.today === 'true')).toEqual([])
   })
 
   it('titles itself with the month and renders weekday headers first', () => {
     const node = calendarNode([])
-    expect(texts(node)[0]).toBe('July 2025')
+    expect(node.children?.[0].children?.[1].text).toBe('July 2025')
     expect(
       collect(node, (candidate) => candidate.class === 'lsdb-calendar__weekday').map(
         (candidate) => candidate.text,

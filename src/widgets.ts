@@ -30,6 +30,8 @@ import type { WidgetNode } from './view'
 
 export interface WidgetContext {
   now: Date
+  /** Month shown by the calendar; `now` remains the source of today's highlight. */
+  calendarMonth: Date
   weekStart: WeekStart
   birthDate: Date | null
   lifespanYears: number
@@ -182,9 +184,9 @@ const calendarWidget: WidgetDefinition = {
   id: 'calendar',
   label: 'Calendar',
   group: 'calendar',
-  request({ now }) {
-    const year = now.getFullYear()
-    const month = now.getMonth() + 1
+  request({ calendarMonth }) {
+    const year = calendarMonth.getFullYear()
+    const month = calendarMonth.getMonth() + 1
     const firstOfMonth = year * 10_000 + month * 100
     return {
       key: `journal-content:${year}-${month}`,
@@ -195,9 +197,14 @@ const calendarWidget: WidgetDefinition = {
         host.journalDaysWithContent(firstOfMonth + 1, firstOfMonth + 31),
     }
   },
-  build({ now, weekStart }, data) {
+  build({ now, calendarMonth, weekStart }, data) {
     const days = readJournalDays(data)
-    const grid = buildCalendarGrid(now, weekStart, (day) => days.has(day))
+    const grid = buildCalendarGrid(
+      now,
+      weekStart,
+      (day) => days.has(day),
+      calendarMonth,
+    )
 
     const cells: WidgetNode[] = grid.weekdayLabels.map((label) => ({
       tag: 'span',
@@ -232,9 +239,23 @@ const calendarWidget: WidgetDefinition = {
           class: 'lsdb-widget__head',
           children: [
             {
+              tag: 'button',
+              class: 'lsdb-calendar__month-nav',
+              title: 'Previous month',
+              text: '‹',
+              action: { kind: 'changeCalendarMonth', direction: -1 },
+            },
+            {
               tag: 'span',
               class: 'lsdb-widget__label',
               text: formatMonthLabel(grid.year, grid.month),
+            },
+            {
+              tag: 'button',
+              class: 'lsdb-calendar__month-nav',
+              title: 'Next month',
+              text: '›',
+              action: { kind: 'changeCalendarMonth', direction: 1 },
             },
           ],
         },

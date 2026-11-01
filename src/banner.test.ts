@@ -279,6 +279,42 @@ describe('widget rendering', () => {
 
     expect(actions).toEqual([{ kind: 'openJournalDay', day: 20260725 }])
   })
+
+  it('routes month arrows as navigation actions, not journal actions', () => {
+    const actions: unknown[] = []
+    setWidgetActionHandler((action) => actions.push(action))
+    const container = render([
+      {
+        id: 'calendar',
+        group: 'calendar',
+        node: {
+          class: 'lsdb-widget',
+          children: [
+            {
+              tag: 'button',
+              class: 'lsdb-calendar__month-nav',
+              action: { kind: 'changeCalendarMonth', direction: -1 },
+            },
+            { tag: 'span', text: 'July 2026' },
+            {
+              tag: 'button',
+              class: 'lsdb-calendar__month-nav',
+              action: { kind: 'changeCalendarMonth', direction: 1 },
+            },
+          ],
+        },
+      },
+    ])
+
+    const arrows = container.querySelectorAll('.lsdb-calendar__month-nav')
+    ;(arrows[0] as HTMLElement).click()
+    ;(arrows[1] as HTMLElement).click()
+
+    expect(actions).toEqual([
+      { kind: 'changeCalendarMonth', direction: -1 },
+      { kind: 'changeCalendarMonth', direction: 1 },
+    ])
+  })
 })
 
 /**
