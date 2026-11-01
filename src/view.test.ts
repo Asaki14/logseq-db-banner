@@ -7,6 +7,13 @@ describe('widget actions', () => {
     expect(decodeAction(encodeAction(action))).toEqual(action)
   })
 
+  it('round-trips month navigation actions', () => {
+    for (const direction of [-1, 1] as const) {
+      const action = { kind: 'changeCalendarMonth', direction } as const
+      expect(decodeAction(encodeAction(action))).toEqual(action)
+    }
+  })
+
   it('rejects anything that is not an action', () => {
     expect(decodeAction(undefined)).toBeNull()
     expect(decodeAction('')).toBeNull()
@@ -24,5 +31,11 @@ describe('widget actions', () => {
     expect(withDay(0)).toBeNull()
     expect(withDay(-20260725)).toBeNull()
     expect(withDay(2026.5)).toBeNull()
+  })
+
+  it('rejects invalid month navigation directions', () => {
+    expect(
+      decodeAction(JSON.stringify({ kind: 'changeCalendarMonth', direction: 0 })),
+    ).toBeNull()
   })
 })

@@ -261,13 +261,33 @@ export const bannerStyles = `
 }
 
 #lsdb-banner .lsdb-widget--calendar .lsdb-widget__head {
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
 }
 
 #lsdb-banner .lsdb-widget--calendar .lsdb-widget__label {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   text-align: center;
   font-size: 13px;
+}
+
+#lsdb-banner .lsdb-calendar__month-nav {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--lsdb-ink) 12%, transparent);
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#lsdb-banner .lsdb-calendar__month-nav:hover {
+  background: color-mix(in srgb, var(--lsdb-ink) 20%, transparent);
 }
 
 /* Fixed cells, so the card is exactly as big as a readable month and no bigger:
